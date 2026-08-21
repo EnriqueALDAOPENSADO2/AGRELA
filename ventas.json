@@ -1,0 +1,15 @@
+[
+    {
+        "base_imponible": 150,
+        "cliente_cif": "B99887766",
+        "cliente_nombre": "CLIENTE TEST VENTAS S.L.",
+        "cuota_iva": 31.5,
+        "excel_path": "facturas/Factura_TEST-VEN-001.xlsx",
+        "fecha": "2026-08-21",
+        "id": "TEST-VEN-001_20260821",
+        "num_articulos": 1,
+        "numero_factura": "TEST-VEN-001",
+        "pdf_path": "facturas/Factura_TEST-VEN-001.pdf",
+        "total_factura": 181.5
+    }
+]

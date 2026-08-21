@@ -1,0 +1,49 @@
+name: Compilar AGRELA Facturacion para Windows
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Descargar Código
+      uses: actions/checkout@v4
+
+    - name: Instalar Qt5 y Herramientas
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '5.15.2'
+        host: 'windows'
+        target: 'desktop'
+        arch: 'win64_msvc2019_64'
+
+    - name: Configurar CMake
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Compilar Ejecutable .EXE
+      run: |
+        cmake --build build --config Release
+
+    - name: Empaquetar Distribución Portable (windeployqt)
+      run: |
+        New-Item -ItemType Directory -Force -Path AGRELA_Windows_Portable
+        Copy-Item build\Release\agrela_facturacion.exe AGRELA_Windows_Portable\
+        Copy-Item sample.xlsx AGRELA_Windows_Portable\
+        Copy-Item catalog.json AGRELA_Windows_Portable\
+        Copy-Item clientes.json AGRELA_Windows_Portable\
+        Copy-Item logo.jpg AGRELA_Windows_Portable\
+        Copy-Item -Recurse extracted_images AGRELA_Windows_Portable\
+        windeployqt AGRELA_Windows_Portable\agrela_facturacion.exe
+
+    - name: Subir Paquete Portable .ZIP
+      uses: actions/upload-artifact@v4
+      with:
+        name: AGRELA_Facturacion_Windows
+        path: AGRELA_Windows_Portable

@@ -1,0 +1,17 @@
+# Carpetas de compilación local y temporales
+build/
+build_win/
+AGRELA_Windows_Portable/
+.tempmediaStorage/
+
+# Ejecutables locales de Linux
+agrela_facturacion
+test_runner
+test_render_ui
+*.png
+*.pdf
+
+# Archivos de configuración local
+.vscode/
+.idea/
+*.user

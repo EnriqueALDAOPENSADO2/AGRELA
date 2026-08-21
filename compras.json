@@ -1,0 +1,16 @@
+[
+    {
+        "base_imponible": 85,
+        "cif_nif": "A12345678",
+        "concepto": "Lamas de aluminio extrusionado 43mm",
+        "cuota_iva": 17.85,
+        "fecha": "2026-08-21",
+        "id": "PUR_1787328929346_1",
+        "num_factura_proveedor": "PROV-8812",
+        "precio_unitario": 8.5,
+        "proveedor": "PROVEEDOR ALUMINIOS S.A.",
+        "tipo_iva": 0.21,
+        "total": 102.85,
+        "unidades": 10
+    }
+]
