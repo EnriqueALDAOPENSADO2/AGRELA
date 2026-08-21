@@ -1,4 +1,5 @@
 #include "CatalogService.h"
+#include "../utils/ExcelReader.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
@@ -29,7 +30,66 @@ static QString removeAccents(const QString& str) {
     return result.toLower();
 }
 
+bool CatalogService::loadFromExcel(const QString& xlsxPath) {
+    if (!QFile::exists(xlsxPath)) {
+        return false;
+    }
+
+    auto rows = ExcelReader::readXlsx(xlsxPath);
+    if (rows.size() <= 1) {
+        return false;
+    }
+
+    QVector<CatalogItem> items;
+    for (int i = 1; i < rows.size(); ++i) {
+        const auto& r = rows[i];
+        if (r.size() < 3) continue;
+
+        CatalogItem it;
+        it.code = r[0].trimmed();
+        it.desc = r[1].trimmed();
+        if (it.desc.isEmpty() && it.code.isEmpty()) continue;
+
+        it.p1 = r[2].trimmed().toDouble();
+        it.u1 = (r.size() > 3 && !r[3].trimmed().isEmpty()) ? r[3].trimmed() : "ud.";
+        it.sheet = (r.size() > 4 && !r[4].trimmed().isEmpty()) ? r[4].trimmed() : "General";
+        it.imgPath = (r.size() > 5) ? r[5].trimmed() : "";
+
+        items.append(it);
+    }
+
+    if (!items.isEmpty()) {
+        m_items = items;
+        qDebug() << "Catálogo cargado directamente desde Excel (" << xlsxPath << "):" << m_items.size() << "artículos.";
+
+        // Sincronizar copia a JSON
+        QJsonArray arr;
+        for (const auto& it : m_items) {
+            arr.append(it.toJson());
+        }
+        QFile f("catalog.json");
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            f.write(QJsonDocument(arr).toJson());
+            f.close();
+        }
+        return true;
+    }
+    return false;
+}
+
 bool CatalogService::syncWithPreciosFolder(const QString& folderPath, const QString& jsonPath, bool force) {
+    // 1. Si existe precios_catalogo.xlsx y es más nuevo o force, cargar desde Excel
+    QString excelPath = "precios_catalogo.xlsx";
+    if (QFile::exists(excelPath)) {
+        QFileInfo xlInfo(excelPath);
+        QFileInfo jsonInfo(jsonPath);
+        if (force || !jsonInfo.exists() || xlInfo.lastModified() > jsonInfo.lastModified()) {
+            if (loadFromExcel(excelPath)) {
+                return true;
+            }
+        }
+    }
+
     bool needsUpdate = force;
 
     if (!QFile::exists(jsonPath)) {
@@ -71,8 +131,23 @@ void CatalogService::runExtractionScript(const QString& folderPath, const QStrin
 }
 
 bool CatalogService::loadCatalog(const QString& jsonPath) {
+    // Si existe precios_catalogo.xlsx y es más reciente que el json, cargar de Excel
+    QString excelPath = "precios_catalogo.xlsx";
+    if (QFile::exists(excelPath)) {
+        QFileInfo xlInfo(excelPath);
+        QFileInfo jsonInfo(jsonPath);
+        if (!jsonInfo.exists() || xlInfo.lastModified() > jsonInfo.lastModified()) {
+            if (loadFromExcel(excelPath)) {
+                return true;
+            }
+        }
+    }
+
     QFile file(jsonPath);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (QFile::exists(excelPath)) {
+            return loadFromExcel(excelPath);
+        }
         qWarning() << "No se pudo abrir el archivo de catálogo:" << jsonPath;
         return false;
     }
@@ -103,70 +178,75 @@ const QVector<CatalogItem>& CatalogService::getAllItems() const {
 }
 
 QStringList CatalogService::getSheets() const {
-    QStringList sheets;
-    sheets << "Todas";
-    QSet<QString> seen;
-    for (const auto& item : m_items) {
-        if (!item.sheet.isEmpty() && !seen.contains(item.sheet)) {
-            seen.insert(item.sheet);
-            sheets << item.sheet;
+    QSet<QString> sheets;
+    for (const auto& it : m_items) {
+        if (!it.sheet.isEmpty()) {
+            sheets.insert(it.sheet);
         }
     }
-    return sheets;
+    QStringList sorted = sheets.values();
+    sorted.sort();
+    return sorted;
 }
 
 QStringList CatalogService::getCategoriesForSheet(const QString& sheet) const {
-    QStringList categories;
-    QSet<QString> seen;
-    for (const auto& item : m_items) {
-        if (sheet == "Todas" || item.sheet == sheet) {
-            if (!item.category.isEmpty() && !seen.contains(item.category)) {
-                seen.insert(item.category);
-                categories << item.category;
+    QSet<QString> cats;
+    for (const auto& it : m_items) {
+        if (sheet == "Todas" || it.sheet.compare(sheet, Qt::CaseInsensitive) == 0) {
+            if (!it.category.isEmpty()) {
+                cats.insert(it.category);
             }
         }
     }
-    return categories;
+    QStringList sorted = cats.values();
+    sorted.sort();
+    return sorted;
 }
 
 QVector<CatalogItem> CatalogService::search(const QString& text, const QString& sheetFilter) const {
+    if (text.trimmed().isEmpty() && (sheetFilter == "Todas" || sheetFilter.isEmpty())) {
+        return m_items;
+    }
+
+    QString normText = removeAccents(text.trimmed());
+    QStringList tokens = normText.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+
     QVector<CatalogItem> results;
-    QString cleanQuery = removeAccents(text).trimmed();
-    QStringList terms = cleanQuery.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    for (const auto& it : m_items) {
+        if (sheetFilter != "Todas" && !sheetFilter.isEmpty()) {
+            if (it.sheet.compare(sheetFilter, Qt::CaseInsensitive) != 0) {
+                continue;
+            }
+        }
 
-    for (const auto& item : m_items) {
-        if (sheetFilter != "Todas" && item.sheet != sheetFilter) {
+        if (tokens.isEmpty()) {
+            results.append(it);
             continue;
         }
 
-        if (terms.isEmpty()) {
-            results.append(item);
-            continue;
-        }
+        QString itemDescNorm = removeAccents(it.desc);
+        QString itemCodeNorm = removeAccents(it.code);
 
-        // Crear una cadena compuesta y normalizada con código, descripción, categoría y hoja
-        QString itemText = removeAccents(item.code + " " + item.desc + " " + item.category + " " + item.sheet);
-        
         bool allMatch = true;
-        for (const QString& term : terms) {
-            if (!itemText.contains(term)) {
+        for (const auto& tok : tokens) {
+            if (!itemDescNorm.contains(tok) && !itemCodeNorm.contains(tok)) {
                 allMatch = false;
                 break;
             }
         }
 
         if (allMatch) {
-            results.append(item);
+            results.append(it);
         }
     }
+
     return results;
 }
 
 CatalogItem CatalogService::findByCode(const QString& code) const {
-    QString cleanTarget = code.trimmed();
-    for (const auto& item : m_items) {
-        if (item.code.trimmed() == cleanTarget) {
-            return item;
+    for (const auto& it : m_items) {
+        if (it.code.compare(code, Qt::CaseInsensitive) == 0) {
+            return it;
         }
     }
     return CatalogItem();

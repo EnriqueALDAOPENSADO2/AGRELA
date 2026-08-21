@@ -36,10 +36,18 @@ jobs:
         New-Item -ItemType Directory -Force -Path AGRELA_Windows_Portable
         Copy-Item build\Release\agrela_facturacion.exe AGRELA_Windows_Portable\
         Copy-Item sample.xlsx AGRELA_Windows_Portable\
+        Copy-Item precios_catalogo.xlsx AGRELA_Windows_Portable\
+        Copy-Item clientes.xlsx AGRELA_Windows_Portable\
         Copy-Item catalog.json AGRELA_Windows_Portable\
         Copy-Item clientes.json AGRELA_Windows_Portable\
         Copy-Item logo.jpg AGRELA_Windows_Portable\
-        Copy-Item -Recurse extracted_images AGRELA_Windows_Portable\
+        Copy-Item app_icon.ico AGRELA_Windows_Portable\
+        Copy-Item app_icon.png AGRELA_Windows_Portable\
+        if (Test-Path "extracted_images") { Copy-Item -Recurse extracted_images AGRELA_Windows_Portable\ }
+        if (Test-Path "PRECIOS") { Copy-Item -Recurse PRECIOS AGRELA_Windows_Portable\ }
+        if (Test-Path "CLIENTES") { Copy-Item -Recurse CLIENTES AGRELA_Windows_Portable\ }
+        if (Test-Path "windows\CLIENTES") { Copy-Item -Recurse windows\CLIENTES AGRELA_Windows_Portable\CLIENTES }
+        if (Test-Path "CARPETA CLIENTES") { Copy-Item -Recurse "CARPETA CLIENTES" AGRELA_Windows_Portable\ }
         windeployqt AGRELA_Windows_Portable\agrela_facturacion.exe
 
     - name: Subir Paquete Portable .ZIP

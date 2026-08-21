@@ -24,6 +24,8 @@ set(MINIZ_SOURCES
     src/utils/miniz_tdef.c
     src/utils/miniz_tinfl.c
     src/utils/miniz_zip.c
+    src/utils/ExcelReader.h
+    src/utils/ExcelReader.cpp
 )
 
 set(SOURCES

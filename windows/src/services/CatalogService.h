@@ -9,6 +9,7 @@ public:
     static CatalogService& instance();
 
     bool loadCatalog(const QString& jsonPath = "catalog.json");
+    bool loadFromExcel(const QString& xlsxPath = "precios_catalogo.xlsx");
     bool syncWithPreciosFolder(const QString& folderPath = "PRECIOS", const QString& jsonPath = "catalog.json", bool force = false);
     
     const QVector<CatalogItem>& getAllItems() const;

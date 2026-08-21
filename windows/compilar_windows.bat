@@ -38,6 +38,8 @@ if exist build\Release\agrela_facturacion.exe (
 )
 
 copy /y sample.xlsx AGRELA_Windows_Portable\
+if exist precios_catalogo.xlsx copy /y precios_catalogo.xlsx AGRELA_Windows_Portable\
+if exist clientes.xlsx copy /y clientes.xlsx AGRELA_Windows_Portable\
 copy /y catalog.json AGRELA_Windows_Portable\
 copy /y clientes.json AGRELA_Windows_Portable\
 if exist logo.jpg copy /y logo.jpg AGRELA_Windows_Portable\
@@ -47,6 +49,7 @@ if exist app_icon.png copy /y app_icon.png AGRELA_Windows_Portable\
 if exist extracted_images xcopy /E /I /Y extracted_images AGRELA_Windows_Portable\extracted_images >nul 2>&1
 if exist PRECIOS xcopy /E /I /Y PRECIOS AGRELA_Windows_Portable\PRECIOS >nul 2>&1
 if exist CLIENTES xcopy /E /I /Y CLIENTES AGRELA_Windows_Portable\CLIENTES >nul 2>&1
+if exist "CARPETA CLIENTES" xcopy /E /I /Y "CARPETA CLIENTES" "AGRELA_Windows_Portable\CARPETA CLIENTES" >nul 2>&1
 
 echo Desplegando librerias DLL de Qt (windeployqt)...
 windeployqt AGRELA_Windows_Portable\agrela_facturacion.exe >nul 2>&1
