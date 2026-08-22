@@ -48,7 +48,6 @@ if exist app_icon.ico copy /y app_icon.ico AGRELA_Windows_Portable\
 if exist app_icon.png copy /y app_icon.png AGRELA_Windows_Portable\
 if exist extracted_images xcopy /E /I /Y extracted_images AGRELA_Windows_Portable\extracted_images >nul 2>&1
 if exist PRECIOS xcopy /E /I /Y PRECIOS AGRELA_Windows_Portable\PRECIOS >nul 2>&1
-if exist CLIENTES xcopy /E /I /Y CLIENTES AGRELA_Windows_Portable\CLIENTES >nul 2>&1
 if exist "CARPETA CLIENTES" xcopy /E /I /Y "CARPETA CLIENTES" "AGRELA_Windows_Portable\CARPETA CLIENTES" >nul 2>&1
 
 echo Desplegando librerias DLL de Qt (windeployqt)...

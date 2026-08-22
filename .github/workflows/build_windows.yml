@@ -48,8 +48,6 @@ jobs:
         Copy-Item app_icon.png AGRELA_Windows_Portable\
         if (Test-Path "extracted_images") { Copy-Item -Recurse extracted_images AGRELA_Windows_Portable\ }
         if (Test-Path "PRECIOS") { Copy-Item -Recurse PRECIOS AGRELA_Windows_Portable\ }
-        if (Test-Path "CLIENTES") { Copy-Item -Recurse CLIENTES AGRELA_Windows_Portable\ }
-        if (Test-Path "windows\CLIENTES") { Copy-Item -Recurse windows\CLIENTES AGRELA_Windows_Portable\CLIENTES }
         if (Test-Path "CARPETA CLIENTES") { Copy-Item -Recurse "CARPETA CLIENTES" AGRELA_Windows_Portable\ }
         windeployqt AGRELA_Windows_Portable\agrela_facturacion.exe
 

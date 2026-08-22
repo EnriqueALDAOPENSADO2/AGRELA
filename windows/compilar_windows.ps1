@@ -47,7 +47,7 @@ if (Test-Path "app_icon.ico") { Copy-Item -Force "app_icon.ico" "AGRELA_Windows_
 if (Test-Path "app_icon.png") { Copy-Item -Force "app_icon.png" "AGRELA_Windows_Portable\" }
 if (Test-Path "extracted_images") { Copy-Item -Recurse -Force "extracted_images" "AGRELA_Windows_Portable\" }
 if (Test-Path "PRECIOS") { Copy-Item -Recurse -Force "PRECIOS" "AGRELA_Windows_Portable\" }
-if (Test-Path "CLIENTES") { Copy-Item -Recurse -Force "CLIENTES" "AGRELA_Windows_Portable\" }
+if (Test-Path "CARPETA CLIENTES") { Copy-Item -Recurse -Force "CARPETA CLIENTES" "AGRELA_Windows_Portable\" }
 
 Write-Host "Desplegando librerías DLL de Qt (windeployqt)..." -ForegroundColor Yellow
 windeployqt AGRELA_Windows_Portable\agrela_facturacion.exe
