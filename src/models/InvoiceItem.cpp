@@ -3,6 +3,10 @@
 #include <cmath>
 
 double InvoiceItem::calcularMetrosCuadradosUnitario() const {
+    if (unidad.contains("ud", Qt::CaseInsensitive) || unidad.contains("unid", Qt::CaseInsensitive)) {
+        return 0.0;
+    }
+
     double w = (anchoRolloUsado > 0.0) ? anchoRolloUsado : anchoPersianaFinal;
     if (w > 0.0 && alto > 0.0) {
         double m2 = (w / 1000.0) * (alto / 1000.0);
@@ -29,11 +33,14 @@ double InvoiceItem::calcularMetrosCuadrados() const {
 double InvoiceItem::calcularTotal() const {
     double totalM2 = calcularMetrosCuadrados();
     double rawTotal = 0.0;
-    if (totalM2 > 0.0) {
-        // Para persianas por m² y perfiles por ml calculados por dimensión
-        rawTotal = totalM2 * precioUnitario;
+    if (unidad.contains("m²", Qt::CaseInsensitive) || unidad.contains("m2", Qt::CaseInsensitive) || unidad.contains("ml", Qt::CaseInsensitive)) {
+        if (totalM2 > 0.0) {
+            rawTotal = totalM2 * precioUnitario;
+        } else {
+            rawTotal = unidades * precioUnitario;
+        }
     } else {
-        // Para productos por unidad fija
+        // Para productos por unidad fija ("ud.")
         rawTotal = unidades * precioUnitario;
     }
     return std::round(rawTotal * 100.0) / 100.0;
@@ -64,7 +71,7 @@ InvoiceItem InvoiceItem::fromJson(const QJsonObject& obj) {
     item.alto = obj["alto"].toDouble(0.0);
     item.unidad = obj["unidad"].toString("ud.");
     item.imgPath = obj["img_path"].toString();
-    item.aplicarMinimoCompacto = obj["aplicar_minimo_compacto"].toBool(false);
+    item.aplicarMinimoCompacto = obj["minimo_compacto"].toBool(false);
     return item;
 }
 
@@ -80,6 +87,7 @@ QJsonObject InvoiceItem::toJson() const {
     obj["alto"] = alto;
     obj["unidad"] = unidad;
     obj["img_path"] = imgPath;
-    obj["aplicar_minimo_compacto"] = aplicarMinimoCompacto;
+    obj["minimo_compacto"] = aplicarMinimoCompacto;
+    obj["total"] = calcularTotal();
     return obj;
 }

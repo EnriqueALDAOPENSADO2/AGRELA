@@ -263,33 +263,20 @@ void LineItemDialog::onUnidadChanged(int index) {
     QString uType = m_cmbUnidad->itemData(index).toString();
     m_item.unidad = uType;
 
+    // Todas las cajas de dimensiones están SIEMPRE habilitadas como opcionales
+    m_spnAnchoFinal->setEnabled(true);
+    m_spnAnchoRollo->setEnabled(true);
+    m_spnAlto->setEnabled(true);
+
     if (uType == "ud.") {
-        m_spnAnchoFinal->setEnabled(false);
-        m_spnAnchoRollo->setEnabled(false);
-        m_spnAlto->setEnabled(false);
-
-        m_spnAnchoFinal->setValue(0.0);
-        m_spnAnchoRollo->setValue(0.0);
-        m_spnAlto->setValue(0.0);
-
-        m_lblFinalHelp->setText("<b>Ancho (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable para venta por unidad)</span>");
-        m_lblRolloHelp->setText("<b>Ancho Rollo (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable para venta por unidad)</span>");
-        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable para venta por unidad)</span>");
+        m_lblFinalHelp->setText("<b>Ancho (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional, medidas de la pieza)</span>");
+        m_lblRolloHelp->setText("<b>Ancho Rollo (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional)</span>");
+        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional, medidas de la pieza)</span>");
     } else if (uType == "ml.") {
-        m_spnAnchoFinal->setEnabled(true);
-        m_spnAnchoRollo->setEnabled(true);
-        m_spnAlto->setEnabled(false);
-
-        m_spnAlto->setValue(0.0);
-
         m_lblFinalHelp->setText("<b>Longitud Pieza (mm):</b> <span style='color:#64748B; font-weight:normal;'>Largo por unidad en milímetros.</span>");
-        m_lblRolloHelp->setText("<b>Longitud Rollo (mm):</b> <span style='color:#C2410C; font-weight:normal;'>Longitud facturada si difiere.</span>");
-        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable para perfiles lineales)</span>");
+        m_lblRolloHelp->setText("<b>Longitud Rollo (mm):</b> <span style='color:#C2410C; font-weight:normal;'>Longitud corte/rollo si difiere.</span>");
+        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional)</span>");
     } else {
-        m_spnAnchoFinal->setEnabled(true);
-        m_spnAnchoRollo->setEnabled(true);
-        m_spnAlto->setEnabled(true);
-
         m_lblFinalHelp->setText("<b>Ancho Persiana Final (mm):</b><br><span style='color:#64748B; font-weight:normal;'>Medida instalada de la persiana acabada (aparece en la factura).</span>");
         m_lblRolloHelp->setText("<b>Ancho Rollo Usado (mm):</b><br><span style='color:#C2410C; font-weight:normal;'>Ancho del corte/rollo cobrado (se usa para calcular los M²).</span>");
         m_lblAltoHelp->setText("<b>Alto Persiana (mm):</b>");
@@ -322,9 +309,17 @@ void LineItemDialog::updateCalculations() {
             .arg(m_item.unidades, 0, 'f', 0)
             .arg(unitMl, 0, 'f', 3));
     } else {
-        m_lblM2Calc->setText(QString("Venta por unidad fija (%1 uds a %2 €/ud)")
-            .arg(m_item.unidades, 0, 'f', 0)
-            .arg(m_item.precioUnitario, 0, 'f', 2));
+        if (m_item.anchoPersianaFinal > 0.0 || m_item.alto > 0.0) {
+            m_lblM2Calc->setText(QString("Venta por unidad (%1 uds a %2 €/ud) | Medidas: %3 x %4 mm")
+                .arg(m_item.unidades, 0, 'f', 0)
+                .arg(m_item.precioUnitario, 0, 'f', 2)
+                .arg(m_item.anchoPersianaFinal > 0 ? QString::number(m_item.anchoPersianaFinal, 'f', 0) : "-")
+                .arg(m_item.alto > 0 ? QString::number(m_item.alto, 'f', 0) : "-"));
+        } else {
+            m_lblM2Calc->setText(QString("Venta por unidad (%1 uds a %2 €/ud)")
+                .arg(m_item.unidades, 0, 'f', 0)
+                .arg(m_item.precioUnitario, 0, 'f', 2));
+        }
     }
 
     m_lblTotalCalc->setText(QString("Total Línea: %1 €").arg(totalEuros, 0, 'f', 2));

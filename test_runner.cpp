@@ -189,6 +189,30 @@ int main(int argc, char* argv[]) {
         std::cout << "  => PASSED!\n" << std::endl;
     }
 
+    // Test 6: Producto Manual Fuera de Catálogo con Dimensiones Opcionales
+    {
+        std::cout << "[Test 6: Producto Manual Fuera de Catálogo con Dimensiones Opcionales]" << std::endl;
+
+        InvoiceItem manualItem;
+        manualItem.code = "MAN-001";
+        manualItem.desc = "Mosquitera Enrollable Mosquiflex 42 Blanco (Fuera de Catálogo)";
+        manualItem.unidades = 2.0;
+        manualItem.precioUnitario = 48.00; // 48 € por unidad
+        manualItem.unidad = "ud.";
+        manualItem.anchoPersianaFinal = 1150.0; // Dimensión opcional informada (1150 mm)
+        manualItem.alto = 1400.0;               // Dimensión opcional informada (1400 mm)
+
+        double total = manualItem.calcularTotal();
+        std::cout << "  Uds: " << manualItem.unidades << " a " << manualItem.precioUnitario << " €/ud" << std::endl;
+        std::cout << "  Medidas opcionales: " << manualItem.anchoPersianaFinal << " x " << manualItem.alto << " mm" << std::endl;
+        std::cout << "  Total calculado: " << total << " € (esperado: 96.00 €)" << std::endl;
+
+        assert(approxEqual(total, 96.00));
+        assert(approxEqual(manualItem.anchoPersianaFinal, 1150.0));
+        assert(approxEqual(manualItem.alto, 1400.0));
+        std::cout << "  => PASSED!\n" << std::endl;
+    }
+
     std::cout << "========================================" << std::endl;
     std::cout << "  TODOS LOS TESTS DE CÁLCULO PASARON!   " << std::endl;
     std::cout << "========================================" << std::endl;
