@@ -4,9 +4,13 @@
 #include <QLineEdit>
 #include <QDoubleSpinBox>
 #include <QComboBox>
+#include <QRadioButton>
+#include <QButtonGroup>
+#include <QCheckBox>
 #include <QLabel>
 #include <QPushButton>
 #include "../models/InvoiceItem.h"
+#include "../models/CatalogItem.h"
 
 class LineItemDialog : public QDialog {
     Q_OBJECT
@@ -18,14 +22,23 @@ public:
 private slots:
     void updateCalculations();
     void onUnidadChanged(int index);
+    void onTariffToggled();
+    void onColoresEspecialesToggled(bool checked);
 
 private:
     void setupUi();
 
     InvoiceItem m_item;
+    CatalogItem m_catItem;
 
     QLineEdit* m_txtDesc = nullptr;
     QLineEdit* m_txtCode = nullptr;
+    
+    QRadioButton* m_radPvp = nullptr;
+    QRadioButton* m_radT1 = nullptr;
+    QButtonGroup* m_tariffGroup = nullptr;
+    QCheckBox* m_chkColoresEspeciales = nullptr;
+
     QComboBox* m_cmbUnidad = nullptr;
     QDoubleSpinBox* m_spnUnidades = nullptr;
     QDoubleSpinBox* m_spnPrecio = nullptr;

@@ -3,7 +3,7 @@
 #include "ClientSelectorDialog.h"
 #include "../services/InvoiceGeneratorService.h"
 #include "../services/ClientService.h"
-#include "../services/TransactionService.h"
+#include "../services/CatalogService.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -20,9 +20,10 @@
 #include <QDoubleSpinBox>
 #include <QStringListModel>
 #include <QDebug>
+#include <QDateTime>
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
-    setWindowTitle("Persianas A Grela - Confección y Gestión de Facturas, Ventas y Compras");
+    setWindowTitle("Persianas A Grela - Facturación");
     setWindowIcon(QIcon(":/app_icon.png"));
     if (windowIcon().isNull()) setWindowIcon(QIcon("app_icon.png"));
     if (windowIcon().isNull()) setWindowIcon(QIcon("logo.jpg"));
@@ -31,7 +32,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     setMinimumSize(1100, 700);
 
     ClientService::instance().loadClients("clientes.json", "CARPETA CLIENTES");
-    TransactionService::instance().loadTransactions("ventas.json", "compras.json");
 
     setupUi();
     updateClientCompleter();
@@ -51,29 +51,14 @@ void MainWindow::setupUi() {
     setupHeader();
     rootLayout->addWidget(findChild<QFrame*>("headerFrame"));
 
-    // 2. QTabWidget Principal (Facturación | Registro Ventas | Registro Compras)
-    m_tabWidget = new QTabWidget(this);
-    m_tabWidget->setStyleSheet(
-        "QTabWidget::pane { border: 1.5px solid #CBD5E1; background-color: #F1F5F9; border-radius: 8px; }"
-        "QTabBar::tab { background-color: #E2E8F0; color: #334155; padding: 9px 20px; font-weight: bold; font-size: 13px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 4px; border: 1px solid #CBD5E1; }"
-        "QTabBar::tab:selected { background-color: #1F4E78; color: #FFFFFF; border-bottom: none; }"
-        "QTabBar::tab:hover:!selected { background-color: #CBD5E1; color: #1E293B; }"
-    );
-
-    // ----------------------------------------------------
-    // TAB 1: Confección de Facturas (Catálogo + Formulario)
-    // ----------------------------------------------------
-    auto* invoicingWidget = new QWidget(this);
-    auto* invLayout = new QVBoxLayout(invoicingWidget);
-    invLayout->setContentsMargins(6, 8, 6, 6);
-
+    // 2. Panel Dividido (Splitter): Catálogo a la Izquierda | Factura a la Derecha
     auto* splitter = new QSplitter(Qt::Horizontal, this);
     splitter->setStyleSheet(
         "QSplitter::handle { background-color: #CBD5E1; width: 4px; }"
         "QSplitter::handle:hover { background-color: #2B78C5; }"
     );
 
-    // Panel Izquierdo: Catálogo
+    // Panel Izquierdo: Catálogo de Productos
     auto* leftContainer = new QGroupBox("Catálogo de Productos - Persianas A Grela", this);
     leftContainer->setStyleSheet(
         "QGroupBox { background-color: #FFFFFF; border: 1.5px solid #CBD5E1; border-radius: 8px; margin-top: 10px; font-weight: bold; color: #1F4E78; font-size: 13px; }"
@@ -109,38 +94,14 @@ void MainWindow::setupUi() {
     rightLayout->addLayout(bottomLayout);
 
     splitter->addWidget(rightContainer);
-    splitter->setSizes({500, 850});
+    splitter->setSizes({480, 880});
     splitter->setCollapsible(0, false);
     splitter->setCollapsible(1, false);
-    invLayout->addWidget(splitter, 1);
 
-    m_tabWidget->addTab(invoicingWidget, "📑 Confección de Facturas");
+    rootLayout->addWidget(splitter, 1);
 
-    // ----------------------------------------------------
-    // TAB 2: Registro de Ventas (Historial + Filtros)
-    // ----------------------------------------------------
-    m_salesWidget = new SalesWidget(this);
-    m_tabWidget->addTab(m_salesWidget, "📈 Registro de Ventas");
-
-    // ----------------------------------------------------
-    // TAB 3: Registro de Compras (Gastos + Proveedores)
-    // ----------------------------------------------------
-    m_purchasesWidget = new PurchasesWidget(this);
-    m_tabWidget->addTab(m_purchasesWidget, "🛒 Registro de Compras");
-
-    rootLayout->addWidget(m_tabWidget, 1);
-
-    // Conexiones
+    // Conectar selección en catálogo
     connect(m_catalogWidget, &CatalogWidget::itemSelected, this, &MainWindow::onCatalogItemSelected);
-    connect(m_tabWidget, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
-}
-
-void MainWindow::onTabChanged(int index) {
-    if (index == 1 && m_salesWidget) {
-        m_salesWidget->refreshSales();
-    } else if (index == 2 && m_purchasesWidget) {
-        m_purchasesWidget->refreshPurchases();
-    }
 }
 
 void MainWindow::setupHeader() {
@@ -208,7 +169,7 @@ void MainWindow::setupClientAndInvoiceMeta() {
         "QPushButton { background-color: #EBF5FB; color: #1F4E78; border: 1.5px solid #2B78C5; border-radius: 5px; padding: 5px 10px; font-weight: bold; font-size: 11px; }"
         "QPushButton:hover { background-color: #D9E1F2; }"
     );
-    btnBrowseClients->setToolTip("Buscar y rellenar automáticamente desde los 196 clientes de CARPETA CLIENTES");
+    btnBrowseClients->setToolTip("Buscar y rellenar automáticamente desde los clientes de CARPETA CLIENTES");
 
     m_txtClientCif = new QLineEdit(this);
     m_txtClientCif->setPlaceholderText("CIF / NIF");
@@ -228,8 +189,18 @@ void MainWindow::setupClientAndInvoiceMeta() {
     m_dateEdit->setCalendarPopup(true);
     m_dateEdit->setDisplayFormat("dd/MM/yyyy");
 
+    m_dateVencimiento = new QDateEdit(QDate::currentDate(), this);
+    m_dateVencimiento->setCalendarPopup(true);
+    m_dateVencimiento->setDisplayFormat("dd/MM/yyyy");
+    m_dateVencimiento->setStyleSheet("background-color: #FEF3C7; color: #92400E; font-weight: bold; border: 1.5px solid #F59E0B; border-radius: 5px; padding: 4px 6px;");
+
     m_cmbFormaPago = new QComboBox(this);
     m_cmbFormaPago->addItems({"TPV", "Giro bancario 30 días", "Giro bancario 60 días", "Transferencia bancaria", "Efectivo", "Pagaré"});
+
+    m_cmbTarifa = new QComboBox(this);
+    m_cmbTarifa->addItem("PVP (Tarifa General)", "PVP");
+    m_cmbTarifa->addItem("Tarifa 1 (T-1 Distribuidor)", "T1");
+    m_cmbTarifa->setStyleSheet("font-weight: bold; color: #1F4E78; background-color: #F8FAFC; border: 1.5px solid #2B78C5; border-radius: 5px; padding: 4px 6px;");
 
     layout->addWidget(new QLabel("Cliente:", this), 0, 0);
     layout->addLayout(clientNombreLayout, 0, 1);
@@ -244,17 +215,26 @@ void MainWindow::setupClientAndInvoiceMeta() {
     layout->addWidget(new QLabel("Provincia:", this), 2, 0);
     layout->addWidget(m_txtClientProvincia, 2, 1);
 
-    auto* invoiceMetaLayout = new QHBoxLayout();
-    invoiceMetaLayout->addWidget(new QLabel("Nº:", this));
-    invoiceMetaLayout->addWidget(m_txtNumFactura);
-    invoiceMetaLayout->addWidget(new QLabel("Fecha:", this));
-    invoiceMetaLayout->addWidget(m_dateEdit);
-    invoiceMetaLayout->addWidget(new QLabel("Pago:", this));
-    invoiceMetaLayout->addWidget(m_cmbFormaPago);
+    auto* invoiceRow1 = new QHBoxLayout();
+    invoiceRow1->addWidget(new QLabel("Nº:", this));
+    invoiceRow1->addWidget(m_txtNumFactura);
+    invoiceRow1->addWidget(new QLabel("Tarifa:", this));
+    invoiceRow1->addWidget(m_cmbTarifa);
+    layout->addLayout(invoiceRow1, 2, 2, 1, 2);
 
-    layout->addLayout(invoiceMetaLayout, 2, 2, 1, 2);
+    auto* invoiceRow2 = new QHBoxLayout();
+    invoiceRow2->addWidget(new QLabel("Fecha Emisión:", this));
+    invoiceRow2->addWidget(m_dateEdit);
+    invoiceRow2->addWidget(new QLabel("Pago:", this));
+    invoiceRow2->addWidget(m_cmbFormaPago);
+    invoiceRow2->addWidget(new QLabel("Vencimiento:", this));
+    invoiceRow2->addWidget(m_dateVencimiento);
+    layout->addLayout(invoiceRow2, 3, 0, 1, 4);
 
     connect(btnBrowseClients, &QPushButton::clicked, this, &MainWindow::onBrowseClientsClicked);
+    connect(m_cmbTarifa, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::onTarifaChanged);
+    connect(m_cmbFormaPago, QOverload<const QString&>::of(&QComboBox::currentTextChanged), this, &MainWindow::onFormaPagoChanged);
+    connect(m_dateEdit, &QDateEdit::dateChanged, this, &MainWindow::onFechaEmisionChanged);
 }
 
 void MainWindow::updateClientCompleter() {
@@ -318,7 +298,7 @@ void MainWindow::setupLinesTable() {
     m_tableLines = new QTableWidget(this);
     m_tableLines->setColumnCount(9);
     m_tableLines->setHorizontalHeaderLabels({
-        "Foto", "Descripción", "Uds.", "Precio PVP", 
+        "Foto", "Descripción", "Uds.", "Precio Unit. (€)", 
         "Ancho Persiana (mm)", "Ancho Rollo (mm)", "Alto (mm)", "M² Total", "Total (€)"
     });
 
@@ -349,7 +329,15 @@ void MainWindow::setupLinesTable() {
     layout->addWidget(m_tableLines);
 
     auto* btnLayout = new QHBoxLayout();
-    auto* btnAddCustom = new QPushButton("➕ Añadir Línea Libre", this);
+    auto* btnAddCustom = new QPushButton("➕ Añadir Producto Manual (Fuera de Catálogo)", this);
+    btnAddCustom->setCursor(Qt::PointingHandCursor);
+    btnAddCustom->setToolTip("Añadir manualmente cualquier producto fuera de catálogo (Flexol, Mosquiflex, etc.) con su nombre, precio, unidades y medidas.");
+    btnAddCustom->setStyleSheet(
+        "QPushButton { background-color: #EBF5FB; color: #1F4E78; border: 1.5px solid #2B78C5; border-radius: 6px; padding: 7px 14px; font-weight: bold; font-size: 12px; }"
+        "QPushButton:hover { background-color: #D9E1F2; }"
+        "QPushButton:pressed { background-color: #CBD5E1; }"
+    );
+
     auto* btnEdit = new QPushButton("✏️ Editar Línea", this);
     auto* btnDelete = new QPushButton("🗑️ Eliminar Línea", this);
     auto* btnUp = new QPushButton("⬆️ Subir", this);
@@ -360,7 +348,6 @@ void MainWindow::setupLinesTable() {
         "QPushButton:hover { background-color: #E2E8F0; }"
         "QPushButton:pressed { background-color: #CBD5E1; }";
 
-    btnAddCustom->setStyleSheet(btnStyle);
     btnEdit->setStyleSheet(btnStyle);
     btnDelete->setStyleSheet(btnStyle);
     btnUp->setStyleSheet(btnStyle);
@@ -488,8 +475,52 @@ void MainWindow::setupActionsBar() {
     connect(btnLoad, &QPushButton::clicked, this, &MainWindow::onLoadInvoiceJson);
 }
 
+void MainWindow::onTarifaChanged(int) {
+    QString newTariff = m_cmbTarifa ? m_cmbTarifa->currentData().toString() : "PVP";
+    m_currentInvoice.tarifa = newTariff;
+
+    if (!m_currentInvoice.items.isEmpty()) {
+        for (auto& it : m_currentInvoice.items) {
+            it.tarifa = newTariff;
+            CatalogItem cat = CatalogService::instance().findByCode(it.code);
+            if (!cat.code.isEmpty()) {
+                it.precioUnitario = cat.getPriceForTariff(newTariff);
+            }
+        }
+        refreshInvoiceTable();
+    }
+}
+
+void MainWindow::onFormaPagoChanged(const QString& formaPago) {
+    if (!m_dateEdit || !m_dateVencimiento) return;
+    QDate fEmision = m_dateEdit->date();
+    QString fpLower = formaPago.toLower();
+
+    if (fpLower.contains("30")) {
+        m_dateVencimiento->setDate(fEmision.addDays(30));
+    } else if (fpLower.contains("60")) {
+        m_dateVencimiento->setDate(fEmision.addDays(60));
+    } else if (fpLower.contains("90")) {
+        m_dateVencimiento->setDate(fEmision.addDays(90));
+    } else if (fpLower.contains("transferencia")) {
+        m_dateVencimiento->setDate(fEmision.addDays(30));
+    } else if (fpLower.contains("pagar")) {
+        m_dateVencimiento->setDate(fEmision.addDays(60));
+    } else {
+        // TPV, Efectivo, Contado
+        m_dateVencimiento->setDate(fEmision);
+    }
+}
+
+void MainWindow::onFechaEmisionChanged(const QDate&) {
+    if (m_cmbFormaPago) {
+        onFormaPagoChanged(m_cmbFormaPago->currentText());
+    }
+}
+
 void MainWindow::onCatalogItemSelected(const CatalogItem& catItem) {
-    InvoiceItem invItem = InvoiceItem::fromCatalogItem(catItem);
+    QString currentTariff = m_cmbTarifa ? m_cmbTarifa->currentData().toString() : "PVP";
+    InvoiceItem invItem = InvoiceItem::fromCatalogItem(catItem, currentTariff);
     LineItemDialog dlg(invItem, this);
     if (dlg.exec() == QDialog::Accepted) {
         m_currentInvoice.items.append(dlg.getItem());
@@ -499,12 +530,19 @@ void MainWindow::onCatalogItemSelected(const CatalogItem& catItem) {
 
 void MainWindow::onAddCustomLine() {
     InvoiceItem emptyItem;
-    emptyItem.desc = "Artículo personalizado";
+    emptyItem.code = "";
+    emptyItem.desc = "";
     emptyItem.unidades = 1.0;
+    emptyItem.tarifa = m_cmbTarifa ? m_cmbTarifa->currentData().toString() : "PVP";
     emptyItem.precioUnitario = 0.0;
+    emptyItem.unidad = "ud.";
     LineItemDialog dlg(emptyItem, this);
     if (dlg.exec() == QDialog::Accepted) {
-        m_currentInvoice.items.append(dlg.getItem());
+        InvoiceItem result = dlg.getItem();
+        if (result.desc.trimmed().isEmpty()) {
+            result.desc = "Artículo Manual";
+        }
+        m_currentInvoice.items.append(result);
         refreshInvoiceTable();
     }
 }
@@ -575,7 +613,8 @@ void MainWindow::refreshInvoiceTable() {
         udsItem->setTextAlignment(Qt::AlignCenter);
         m_tableLines->setItem(r, 2, udsItem);
 
-        auto* priceItem = new QTableWidgetItem(QString("%1 €").arg(it.precioUnitario, 0, 'f', 2));
+        QString tag = it.tarifa.isEmpty() ? "PVP" : it.tarifa;
+        auto* priceItem = new QTableWidgetItem(QString("%1 € (%2)").arg(it.precioUnitario, 0, 'f', 2).arg(tag));
         priceItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         m_tableLines->setItem(r, 3, priceItem);
 
@@ -627,7 +666,9 @@ Invoice MainWindow::getInvoiceFromUi() const {
 
     inv.numeroFactura = m_txtNumFactura->text().trimmed();
     inv.fecha = m_dateEdit->date();
+    inv.fechaVencimiento = m_dateVencimiento ? m_dateVencimiento->date() : inv.fecha;
     inv.formaPago = m_cmbFormaPago->currentText();
+    inv.tarifa = m_cmbTarifa ? m_cmbTarifa->currentData().toString() : "PVP";
     inv.tipoIva = m_spnTipoIva->value() / 100.0;
     return inv;
 }
@@ -642,9 +683,17 @@ void MainWindow::loadInvoiceToUi(const Invoice& inv) {
 
     m_txtNumFactura->setText(inv.numeroFactura);
     m_dateEdit->setDate(inv.fecha);
+    if (m_dateVencimiento) {
+        m_dateVencimiento->setDate(inv.fechaVencimiento.isValid() ? inv.fechaVencimiento : inv.fecha);
+    }
     
     int idx = m_cmbFormaPago->findText(inv.formaPago);
     if (idx >= 0) m_cmbFormaPago->setCurrentIndex(idx);
+
+    if (m_cmbTarifa) {
+        int tIdx = m_cmbTarifa->findData(inv.tarifa.isEmpty() ? "PVP" : inv.tarifa);
+        if (tIdx >= 0) m_cmbTarifa->setCurrentIndex(tIdx);
+    }
 
     m_spnTipoIva->setValue(inv.tipoIva * 100.0);
     refreshInvoiceTable();
@@ -654,7 +703,11 @@ void MainWindow::onNewInvoice() {
     Invoice fresh;
     fresh.numeroFactura = QString::number(QDateTime::currentDateTime().toSecsSinceEpoch() % 10000);
     fresh.fecha = QDate::currentDate();
+    fresh.fechaVencimiento = fresh.fecha;
     loadInvoiceToUi(fresh);
+    if (m_cmbFormaPago) {
+        onFormaPagoChanged(m_cmbFormaPago->currentText());
+    }
 }
 
 void MainWindow::onGenerateBothClicked() {
@@ -664,12 +717,24 @@ void MainWindow::onGenerateBothClicked() {
         return;
     }
 
-    auto paths = InvoiceGeneratorService::instance().generateBoth(inv, "facturas");
-    if (!paths.first.isEmpty() && !paths.second.isEmpty()) {
-        // REGISTRO AUTOMÁTICO DE LA VENTA EN TRANSACTIONS Y EXCEL DE VENTAS
-        TransactionService::instance().recordSale(inv, paths.first, paths.second);
-        if (m_salesWidget) m_salesWidget->refreshSales();
+    // Ventana interactiva para elegir la carpeta cada vez que se genera la factura
+    QString defaultDir = m_lastOutputDir.isEmpty() ? "facturas" : m_lastOutputDir;
+    QString targetDir = QFileDialog::getExistingDirectory(
+        this, 
+        "Seleccionar Carpeta para Guardar la Factura (Excel + PDF)", 
+        defaultDir,
+        QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
+    );
 
+    if (targetDir.isEmpty()) {
+        return; // El usuario canceló la selección
+    }
+
+    m_lastOutputDir = targetDir;
+    QDir().mkpath(targetDir);
+
+    auto paths = InvoiceGeneratorService::instance().generateBoth(inv, targetDir);
+    if (!paths.first.isEmpty() && !paths.second.isEmpty()) {
         QMessageBox msgBox(this);
         msgBox.setWindowTitle("Factura Generada con Éxito");
         msgBox.setIcon(QMessageBox::Information);
@@ -679,12 +744,12 @@ void MainWindow::onGenerateBothClicked() {
             "QPushButton { background-color: #F1F5F9; color: #1E293B; border: 1px solid #CBD5E1; border-radius: 5px; padding: 6px 14px; font-weight: 600; min-width: 90px; }"
             "QPushButton:hover { background-color: #E2E8F0; }"
         );
-        msgBox.setText(QString("<h3>¡Factura generada y venta registrada!</h3>"
-                               "<p>Se han creado los archivos y registrado la venta automáticamente:</p>"
+        msgBox.setText(QString("<h3>¡Factura generada con éxito!</h3>"
+                               "<p>Se han guardado los archivos en: <b>%1</b></p>"
                                "<ul>"
-                               "<li><b>Excel:</b> %1</li>"
-                               "<li><b>PDF:</b> %2</li>"
-                               "</ul>").arg(paths.first, paths.second));
+                               "<li><b>Excel:</b> %2</li>"
+                               "<li><b>PDF:</b> %3</li>"
+                               "</ul>").arg(targetDir, paths.first, paths.second));
 
         auto* btnOpenPdf = msgBox.addButton("📑 Abrir PDF", QMessageBox::ActionRole);
         auto* btnOpenExcel = msgBox.addButton("📊 Abrir Excel", QMessageBox::ActionRole);
@@ -698,7 +763,7 @@ void MainWindow::onGenerateBothClicked() {
         } else if (msgBox.clickedButton() == btnOpenExcel) {
             QDesktopServices::openUrl(QUrl::fromLocalFile(paths.first));
         } else if (msgBox.clickedButton() == btnOpenFolder) {
-            QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(paths.first).absolutePath()));
+            QDesktopServices::openUrl(QUrl::fromLocalFile(targetDir));
         }
     } else {
         QMessageBox::critical(this, "Error", "Ocurrió un problema generando los archivos de la factura.");
@@ -711,12 +776,15 @@ void MainWindow::onExportExcelOnly() {
         QMessageBox::warning(this, "Aviso", "La factura no contiene ningún artículo.");
         return;
     }
-    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura Excel", QString("facturas/Factura_%1.xlsx").arg(inv.numeroFactura), "Archivos Excel (*.xlsx)");
+    QString defaultDir = m_lastOutputDir.isEmpty() ? "facturas" : m_lastOutputDir;
+    QDir().mkpath(defaultDir);
+
+    QString defaultFile = QString("%1/Factura_%2.xlsx").arg(defaultDir, inv.numeroFactura);
+    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura Excel", defaultFile, "Archivos Excel (*.xlsx)");
     if (!path.isEmpty()) {
+        m_lastOutputDir = QFileInfo(path).absolutePath();
         if (InvoiceGeneratorService::instance().generateExcel(inv, path)) {
-            TransactionService::instance().recordSale(inv, path, "");
-            if (m_salesWidget) m_salesWidget->refreshSales();
-            QMessageBox::information(this, "Éxito", "Factura Excel guardada y venta registrada correctamente.");
+            QMessageBox::information(this, "Éxito", "Factura Excel guardada correctamente.");
         } else {
             QMessageBox::critical(this, "Error", "No se pudo guardar la factura en Excel.");
         }
@@ -729,12 +797,15 @@ void MainWindow::onExportPdfOnly() {
         QMessageBox::warning(this, "Aviso", "La factura no contiene ningún artículo.");
         return;
     }
-    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura PDF", QString("facturas/Factura_%1.pdf").arg(inv.numeroFactura), "Archivos PDF (*.pdf)");
+    QString defaultDir = m_lastOutputDir.isEmpty() ? "facturas" : m_lastOutputDir;
+    QDir().mkpath(defaultDir);
+
+    QString defaultFile = QString("%1/Factura_%2.pdf").arg(defaultDir, inv.numeroFactura);
+    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura PDF", defaultFile, "Archivos PDF (*.pdf)");
     if (!path.isEmpty()) {
+        m_lastOutputDir = QFileInfo(path).absolutePath();
         if (InvoiceGeneratorService::instance().generatePdf(inv, path)) {
-            TransactionService::instance().recordSale(inv, "", path);
-            if (m_salesWidget) m_salesWidget->refreshSales();
-            QMessageBox::information(this, "Éxito", "Factura PDF guardada y venta registrada correctamente.");
+            QMessageBox::information(this, "Éxito", "Factura PDF guardada correctamente.");
         } else {
             QMessageBox::critical(this, "Error", "No se pudo guardar la factura en PDF.");
         }
@@ -743,8 +814,13 @@ void MainWindow::onExportPdfOnly() {
 
 void MainWindow::onSaveInvoiceJson() {
     Invoice inv = getInvoiceFromUi();
-    QString path = QFileDialog::getSaveFileName(this, "Guardar Proyecto de Factura", QString("facturas/Factura_%1.agrfac").arg(inv.numeroFactura), "Factura AGRELA (*.agrfac *.json)");
+    QString defaultDir = m_lastOutputDir.isEmpty() ? "facturas" : m_lastOutputDir;
+    QDir().mkpath(defaultDir);
+
+    QString defaultFile = QString("%1/Factura_%2.agrfac").arg(defaultDir, inv.numeroFactura);
+    QString path = QFileDialog::getSaveFileName(this, "Guardar Proyecto de Factura", defaultFile, "Factura AGRELA (*.agrfac *.json)");
     if (!path.isEmpty()) {
+        m_lastOutputDir = QFileInfo(path).absolutePath();
         QFile file(path);
         if (file.open(QIODevice::WriteOnly)) {
             file.write(QJsonDocument(inv.toJson()).toJson());
@@ -755,15 +831,20 @@ void MainWindow::onSaveInvoiceJson() {
 }
 
 void MainWindow::onLoadInvoiceJson() {
-    QString path = QFileDialog::getOpenFileName(this, "Cargar Proyecto de Factura", "facturas", "Factura AGRELA (*.agrfac *.json)");
+    QString defaultDir = m_lastOutputDir.isEmpty() ? "facturas" : m_lastOutputDir;
+    QString path = QFileDialog::getOpenFileName(this, "Cargar Proyecto de Factura", defaultDir, "Factura AGRELA (*.agrfac *.json)");
     if (!path.isEmpty()) {
+        m_lastOutputDir = QFileInfo(path).absolutePath();
         QFile file(path);
         if (file.open(QIODevice::ReadOnly)) {
             QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
             file.close();
-            if (doc.isObject()) {
-                loadInvoiceToUi(Invoice::fromJson(doc.object()));
-                QMessageBox::information(this, "Éxito", "Proyecto de factura cargado correctamente.");
+            if (!doc.isNull() && doc.isObject()) {
+                Invoice inv = Invoice::fromJson(doc.object());
+                loadInvoiceToUi(inv);
+                QMessageBox::information(this, "Éxito", "Factura cargada correctamente.");
+            } else {
+                QMessageBox::warning(this, "Aviso", "El archivo no contiene un formato de factura válido.");
             }
         }
     }

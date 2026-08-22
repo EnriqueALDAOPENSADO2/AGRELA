@@ -9,11 +9,8 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QCompleter>
-#include <QTabWidget>
 #include "../models/Invoice.h"
 #include "CatalogWidget.h"
-#include "SalesWidget.h"
-#include "PurchasesWidget.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -34,14 +31,16 @@ private slots:
     void onBrowseClientsClicked();
     void onClientCompleterActivated(const QString& name);
 
+    void onTarifaChanged(int index);
+    void onFormaPagoChanged(const QString& formaPago);
+    void onFechaEmisionChanged(const QDate& date);
+
     void onGenerateBothClicked();
     void onExportExcelOnly();
     void onExportPdfOnly();
     void onNewInvoice();
     void onSaveInvoiceJson();
     void onLoadInvoiceJson();
-
-    void onTabChanged(int index);
 
     void updateTotals();
     void refreshInvoiceTable();
@@ -59,11 +58,6 @@ private:
     void loadInvoiceToUi(const Invoice& inv);
     void applyCustomerData(const Customer& c);
 
-    // Contenedor principal de pestañas
-    QTabWidget* m_tabWidget = nullptr;
-    SalesWidget* m_salesWidget = nullptr;
-    PurchasesWidget* m_purchasesWidget = nullptr;
-
     // Widgets de Cliente
     QLineEdit* m_txtClientNombre = nullptr;
     QLineEdit* m_txtClientCif = nullptr;
@@ -76,7 +70,12 @@ private:
     // Widgets de Factura
     QLineEdit* m_txtNumFactura = nullptr;
     QDateEdit* m_dateEdit = nullptr;
+    QDateEdit* m_dateVencimiento = nullptr;
     QComboBox* m_cmbFormaPago = nullptr;
+    QComboBox* m_cmbTarifa = nullptr;
+
+    // Carpeta recordada
+    QString m_lastOutputDir = "facturas";
 
     // Tabla de Líneas
     QTableWidget* m_tableLines = nullptr;

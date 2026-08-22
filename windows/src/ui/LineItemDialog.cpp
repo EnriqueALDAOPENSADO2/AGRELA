@@ -1,4 +1,6 @@
 #include "LineItemDialog.h"
+#include "../services/CatalogService.h"
+#include <cmath>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -9,8 +11,15 @@
 
 LineItemDialog::LineItemDialog(const InvoiceItem& item, QWidget* parent)
     : QDialog(parent), m_item(item) {
-    setWindowTitle("Configurar Artículo y Dimensiones (mm)");
-    setMinimumWidth(620);
+    m_catItem = CatalogService::instance().findByCode(m_item.code);
+    
+    if (m_item.code.isEmpty() || m_item.code == "MANUAL") {
+        setWindowTitle("Añadir Producto Manual a la Factura (Fuera de Catálogo)");
+    } else {
+        setWindowTitle("Configurar Artículo y Dimensiones (mm)");
+    }
+
+    setMinimumWidth(640);
     setStyleSheet("background-color: #F8FAFC; color: #1E293B;");
     setupUi();
     onUnidadChanged(m_cmbUnidad->currentIndex());
@@ -36,18 +45,26 @@ void LineItemDialog::setupUi() {
         QPixmap pix(m_item.imgPath);
         m_lblImgPreview->setPixmap(pix.scaled(66, 66, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     } else {
-        m_lblImgPreview->setText("Sin Croquis");
+        m_lblImgPreview->setText(m_item.code.isEmpty() ? "Manual" : "Sin Croquis");
         m_lblImgPreview->setStyleSheet("color: #94A3B8; font-size: 11px; font-weight: bold; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px;");
     }
     headerLayout->addWidget(m_lblImgPreview);
 
     auto* headerTextLayout = new QVBoxLayout();
     m_txtCode = new QLineEdit(m_item.code, this);
-    m_txtCode->setPlaceholderText("Código");
-    m_txtCode->setReadOnly(true);
-    m_txtCode->setStyleSheet("font-weight: bold; color: #1F4E78; background: transparent; border: none; font-size: 13px;");
+    m_txtCode->setPlaceholderText("Código / Referencia");
+    if (!m_item.code.isEmpty() && !m_catItem.code.isEmpty()) {
+        m_txtCode->setReadOnly(true);
+        m_txtCode->setStyleSheet("font-weight: bold; color: #1F4E78; background: transparent; border: none; font-size: 13px;");
+    } else {
+        m_txtCode->setReadOnly(false);
+        m_txtCode->setStyleSheet("background-color: #FFFFFF; color: #1E293B; border: 1px solid #CBD5E1; border-radius: 4px; padding: 3px 6px; font-size: 12px; font-weight: 600;");
+    }
 
-    m_txtDesc = new QLineEdit(m_item.desc, this);
+    QString initialDesc = m_item.desc;
+    if (initialDesc == "Artículo personalizado") initialDesc = "";
+    m_txtDesc = new QLineEdit(initialDesc, this);
+    m_txtDesc->setPlaceholderText("Introduce el nombre o descripción del producto (ej: Mosquitera Mosquiflex, Cortina Flexol, etc.)...");
     m_txtDesc->setStyleSheet("background-color: #FFFFFF; color: #1E293B; border: 1.5px solid #CBD5E1; border-radius: 5px; padding: 6px 8px; font-size: 13px; font-weight: 600;");
 
     headerTextLayout->addWidget(m_txtCode);
@@ -65,11 +82,71 @@ void LineItemDialog::setupUi() {
         "QDoubleSpinBox, QComboBox { background-color: #FFFFFF; color: #1E293B; border: 1.5px solid #CBD5E1; border-radius: 5px; padding: 6px 8px; font-size: 13px; font-weight: 500; }"
         "QDoubleSpinBox:focus, QComboBox:focus { border: 1.5px solid #2B78C5; }"
         "QDoubleSpinBox:disabled { background-color: #F1F5F9; color: #94A3B8; border: 1px solid #E2E8F0; }"
+        "QRadioButton { font-size: 12px; font-weight: 600; color: #1E293B; padding: 3px 6px; }"
     );
 
     auto* formLayout = new QFormLayout(formGroup);
     formLayout->setContentsMargins(14, 18, 14, 14);
     formLayout->setSpacing(10);
+
+    // Selector de Tarifa: PVP vs T1
+    auto* tariffLayout = new QHBoxLayout();
+    double pvpDisplay = (m_catItem.pvp > 0.0) ? m_catItem.pvp : ((m_catItem.p1 > 0.0) ? m_catItem.p1 : m_item.precioUnitario);
+    double t1Display = (m_catItem.t1 > 0.0) ? m_catItem.t1 : ((m_catItem.p_t1 > 0.0) ? m_catItem.p_t1 : pvpDisplay);
+
+    if (m_catItem.code.isEmpty()) {
+        m_radPvp = new QRadioButton("PVP (Tarifa General)", this);
+        m_radT1 = new QRadioButton("Tarifa 1 - T-1", this);
+    } else {
+        m_radPvp = new QRadioButton(QString("PVP (%1 €)").arg(pvpDisplay, 0, 'f', 2), this);
+        m_radT1 = new QRadioButton(QString("Tarifa 1 - T1 (%1 €)").arg(t1Display, 0, 'f', 2), this);
+    }
+
+    m_tariffGroup = new QButtonGroup(this);
+    m_tariffGroup->addButton(m_radPvp);
+    m_tariffGroup->addButton(m_radT1);
+
+    if (m_item.tarifa.compare("T1", Qt::CaseInsensitive) == 0 || m_item.tarifa.compare("T-1", Qt::CaseInsensitive) == 0) {
+        m_radT1->setChecked(true);
+    } else {
+        m_radPvp->setChecked(true);
+    }
+
+    auto* btnQuickT1 = new QPushButton("⚡ Aplicar -25% T1", this);
+    btnQuickT1->setCursor(Qt::PointingHandCursor);
+    btnQuickT1->setToolTip("Calcular rápidamente el precio con 25% de descuento");
+    btnQuickT1->setStyleSheet(
+        "QPushButton { background-color: #EBF5FB; color: #1F4E78; border: 1px solid #2B78C5; border-radius: 5px; padding: 4px 8px; font-weight: bold; font-size: 11px; }"
+        "QPushButton:hover { background-color: #D9E1F2; }"
+    );
+    connect(btnQuickT1, &QPushButton::clicked, [this]() {
+        double current = m_spnPrecio->value();
+        m_spnPrecio->setValue(std::round(current * 0.75 * 100.0) / 100.0);
+        m_radT1->setChecked(true);
+        updateCalculations();
+    });
+
+    tariffLayout->addWidget(m_radPvp);
+    tariffLayout->addWidget(m_radT1);
+    tariffLayout->addWidget(btnQuickT1);
+    tariffLayout->addStretch();
+    formLayout->addRow("Tarifa de Precio:", tariffLayout);
+
+    // Opción Colores Especiales (+10%) para FLX-4155 y tejidos
+    m_chkColoresEspeciales = new QCheckBox("🎨 Colores Especiales (+10% en el precio)", this);
+    m_chkColoresEspeciales->setCursor(Qt::PointingHandCursor);
+    m_chkColoresEspeciales->setStyleSheet(
+        "QCheckBox { font-size: 12px; font-weight: bold; color: #C2410C; background-color: #FFF7ED; border: 1px solid #FDBA74; border-radius: 5px; padding: 4px 8px; }"
+        "QCheckBox:hover { background-color: #FFEDD5; }"
+    );
+
+    bool isFlx4155 = m_item.code.contains("4155", Qt::CaseInsensitive) || m_item.desc.contains("4155", Qt::CaseInsensitive);
+    m_chkColoresEspeciales->setChecked(m_item.desc.contains("Colores especiales", Qt::CaseInsensitive));
+    connect(m_chkColoresEspeciales, &QCheckBox::toggled, this, &LineItemDialog::onColoresEspecialesToggled);
+
+    if (isFlx4155 || m_item.desc.contains("Colores especiales", Qt::CaseInsensitive) || m_catItem.sheet.contains("Flexol", Qt::CaseInsensitive)) {
+        formLayout->addRow("Color / Acabado:", m_chkColoresEspeciales);
+    }
 
     // Selector de Tipo de Tarificación / Unidad
     m_cmbUnidad = new QComboBox(this);
@@ -100,7 +177,7 @@ void LineItemDialog::setupUi() {
 
     formLayout->addRow("Tipo de Tarificación / Unidad:", m_cmbUnidad);
     formLayout->addRow("Número de Unidades:", m_spnUnidades);
-    formLayout->addRow("Precio Unitario PVP:", m_spnPrecio);
+    formLayout->addRow("Precio Unitario:", m_spnPrecio);
 
     // Ancho Persiana Final vs Ancho Rollo Usado (en mm)
     m_spnAnchoFinal = new QDoubleSpinBox(this);
@@ -135,22 +212,20 @@ void LineItemDialog::setupUi() {
 
     mainLayout->addWidget(formGroup);
 
-    // Resumen de Cálculo
-    auto* calcCard = new QFrame(this);
-    calcCard->setStyleSheet("background-color: #F0FDF4; border: 1.5px solid #86EFAC; border-radius: 8px; padding: 12px;");
-    auto* calcLayout = new QVBoxLayout(calcCard);
-    calcLayout->setSpacing(6);
+    // Resumen de cálculos en tiempo real
+    auto* summaryCard = new QFrame(this);
+    summaryCard->setStyleSheet("background-color: #EBF5FB; border: 1.5px solid #2B78C5; border-radius: 8px; padding: 10px;");
+    auto* summaryLayout = new QVBoxLayout(summaryCard);
 
-    m_lblM2Calc = new QLabel("Superficie Calculada: 0.00 m²", this);
-    m_lblM2Calc->setStyleSheet("font-size: 13px; color: #166534; font-weight: bold;");
+    m_lblM2Calc = new QLabel("Superficie Total: 0.000 m²", this);
+    m_lblM2Calc->setStyleSheet("font-size: 13px; font-weight: bold; color: #1F4E78;");
 
     m_lblTotalCalc = new QLabel("Total Línea: 0.00 €", this);
-    m_lblTotalCalc->setStyleSheet("font-size: 18px; color: #14532D; font-weight: bold;");
+    m_lblTotalCalc->setStyleSheet("font-size: 16px; font-weight: bold; color: #1F4E78;");
 
-    calcLayout->addWidget(m_lblM2Calc);
-    calcLayout->addWidget(m_lblTotalCalc);
-
-    mainLayout->addWidget(calcCard);
+    summaryLayout->addWidget(m_lblM2Calc);
+    summaryLayout->addWidget(m_lblTotalCalc);
+    mainLayout->addWidget(summaryCard);
 
     // Botones OK / Cancel
     auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -165,6 +240,9 @@ void LineItemDialog::setupUi() {
     mainLayout->addWidget(btnBox);
 
     // Conectar señales para recálculo instantáneo
+    connect(m_txtDesc, &QLineEdit::textChanged, this, &LineItemDialog::updateCalculations);
+    connect(m_radPvp, &QRadioButton::toggled, this, &LineItemDialog::onTariffToggled);
+    connect(m_radT1, &QRadioButton::toggled, this, &LineItemDialog::onTariffToggled);
     connect(m_cmbUnidad, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &LineItemDialog::onUnidadChanged);
     connect(m_spnUnidades, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &LineItemDialog::updateCalculations);
     connect(m_spnPrecio, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &LineItemDialog::updateCalculations);
@@ -178,122 +256,122 @@ void LineItemDialog::setupUi() {
     connect(m_spnAlto, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &LineItemDialog::updateCalculations);
 }
 
-void LineItemDialog::onUnidadChanged(int index) {
-    QString uType = m_cmbUnidad->itemData(index).toString();
-    m_item.unidad = uType;
+void LineItemDialog::onColoresEspecialesToggled(bool checked) {
+    double basePvp = (m_catItem.pvp > 0.0) ? m_catItem.pvp : 59.0;
+    double baseT1 = (m_catItem.t1 > 0.0) ? m_catItem.t1 : (basePvp * 0.75);
 
-    if (uType == "ud.") {
-        // Productos por Unidad: DESHABILITAR Ancho y Largo
-        m_spnAnchoFinal->setEnabled(false);
-        m_spnAnchoRollo->setEnabled(false);
-        m_spnAlto->setEnabled(false);
+    double activeBase = (m_radT1 && m_radT1->isChecked()) ? baseT1 : basePvp;
+    double finalPrice = checked ? (std::round(activeBase * 1.10 * 100.0) / 100.0) : activeBase;
+    m_spnPrecio->setValue(finalPrice);
 
-        m_spnAnchoFinal->setValue(0.0);
-        m_spnAnchoRollo->setValue(0.0);
-        m_spnAlto->setValue(0.0);
-
-        m_lblFinalHelp->setText("<b>Ancho (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable para venta por unidad)</span>");
-        m_lblRolloHelp->setText("<b>Ancho Rollo (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable para venta por unidad)</span>");
-        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable para venta por unidad)</span>");
-    } else if (uType == "ml.") {
-        // Productos por Metro Lineal: HABILITAR Ancho/Longitud, DESHABILITAR Alto
-        m_spnAnchoFinal->setEnabled(true);
-        m_spnAnchoRollo->setEnabled(true);
-        m_spnAlto->setEnabled(false);
-
-        m_spnAlto->setValue(0.0);
-
-        m_lblFinalHelp->setText("<b>Longitud Perfil (mm):</b><br><span style='color:#64748B; font-weight:normal;'>Longitud por unidad en milímetros.</span>");
-        m_lblRolloHelp->setText("<b>Longitud Cobrada (mm):</b><br><span style='color:#C2410C; font-weight:normal;'>Longitud del corte facturado en milímetros.</span>");
-        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#94A3B8; font-weight:normal;'>(No aplicable a metro lineal)</span>");
+    QString curDesc = m_txtDesc->text().trimmed();
+    if (checked) {
+        if (!curDesc.contains("Colores especiales", Qt::CaseInsensitive)) {
+            m_txtDesc->setText(curDesc + " (Colores especiales +10%)");
+        }
     } else {
-        // Productos por Superficie (m²): HABILITAR UDS, ANCHO Y LARGO
-        m_spnAnchoFinal->setEnabled(true);
-        m_spnAnchoRollo->setEnabled(true);
-        m_spnAlto->setEnabled(true);
-
-        m_lblFinalHelp->setText("<b>Ancho Persiana Final (mm):</b><br><span style='color:#64748B; font-weight:normal;'>Medida instalada de la persiana acabada (aparece en la factura).</span>");
-        m_lblRolloHelp->setText("<b>Ancho Rollo Usado (mm):</b><br><span style='color:#C2410C; font-weight:normal;'>Ancho del corte/rollo cobrado (se usa para calcular los M²).</span>");
-        m_lblAltoHelp->setText("<b>Alto Persiana (mm):</b>");
+        curDesc.replace(" (Colores especiales +10%)", "", Qt::CaseInsensitive);
+        curDesc.replace("(Colores especiales +10%)", "", Qt::CaseInsensitive);
+        curDesc.replace(" Colores especiales +10%", "", Qt::CaseInsensitive);
+        m_txtDesc->setText(curDesc.trimmed());
     }
 
     updateCalculations();
 }
 
-void LineItemDialog::updateCalculations() {
-    m_item.desc = m_txtDesc->text().trimmed();
-    m_item.unidad = m_cmbUnidad->currentData().toString();
-    m_item.unidades = m_spnUnidades->value();
-    m_item.precioUnitario = m_spnPrecio->value();
+void LineItemDialog::onTariffToggled() {
+    double basePvp = (m_catItem.pvp > 0.0) ? m_catItem.pvp : 59.0;
+    double baseT1 = (m_catItem.t1 > 0.0) ? m_catItem.t1 : (basePvp * 0.75);
+    bool isSpecial = (m_chkColoresEspeciales && m_chkColoresEspeciales->isChecked());
 
-    if (m_item.unidad == "ud.") {
-        m_item.anchoPersianaFinal = 0.0;
-        m_item.anchoRolloUsado = 0.0;
-        m_item.alto = 0.0;
+    if (m_radT1 && m_radT1->isChecked()) {
+        m_item.tarifa = "T1";
+        double p = isSpecial ? (std::round(baseT1 * 1.10 * 100.0) / 100.0) : baseT1;
+        m_spnPrecio->setValue(p);
     } else {
-        m_item.anchoPersianaFinal = m_spnAnchoFinal->value();
-        m_item.anchoRolloUsado = m_spnAnchoRollo->value();
-        m_item.alto = (m_item.unidad == "ml.") ? 0.0 : m_spnAlto->value();
+        m_item.tarifa = "PVP";
+        double p = isSpecial ? (std::round(basePvp * 1.10 * 100.0) / 100.0) : basePvp;
+        m_spnPrecio->setValue(p);
     }
+    updateCalculations();
+}
 
-    double unitM2 = m_item.calcularMetrosCuadradosUnitario();
+void LineItemDialog::onUnidadChanged(int index) {
+    QString uType = m_cmbUnidad->itemData(index).toString();
+    m_item.unidad = uType;
+
+    // Todas las cajas de dimensiones están SIEMPRE habilitadas como opcionales
+    m_spnAnchoFinal->setEnabled(true);
+    m_spnAnchoRollo->setEnabled(true);
+    m_spnAlto->setEnabled(true);
+
+    if (uType == "ud.") {
+        m_lblFinalHelp->setText("<b>Ancho (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional, medidas de la pieza)</span>");
+        m_lblRolloHelp->setText("<b>Ancho Rollo (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional)</span>");
+        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional, medidas de la pieza)</span>");
+    } else if (uType == "ml.") {
+        m_lblFinalHelp->setText("<b>Longitud Pieza (mm):</b> <span style='color:#64748B; font-weight:normal;'>Largo por unidad en milímetros.</span>");
+        m_lblRolloHelp->setText("<b>Longitud Rollo (mm):</b> <span style='color:#C2410C; font-weight:normal;'>Longitud corte/rollo si difiere.</span>");
+        m_lblAltoHelp->setText("<b>Alto (mm):</b> <span style='color:#64748B; font-weight:normal;'>(Opcional)</span>");
+    } else {
+        m_lblFinalHelp->setText("<b>Ancho Persiana Final (mm):</b><br><span style='color:#64748B; font-weight:normal;'>Medida instalada de la persiana acabada (aparece en la factura).</span>");
+        m_lblRolloHelp->setText("<b>Ancho Rollo Usado (mm):</b><br><span style='color:#C2410C; font-weight:normal;'>Ancho del corte/rollo cobrado (se usa para calcular los M²).</span>");
+        m_lblAltoHelp->setText("<b>Alto Persiana (mm):</b>");
+    }
+    updateCalculations();
+}
+
+void LineItemDialog::updateCalculations() {
+    m_item.desc = m_txtDesc ? m_txtDesc->text().trimmed() : m_item.desc;
+    m_item.unidades = m_spnUnidades ? m_spnUnidades->value() : 1.0;
+    m_item.precioUnitario = m_spnPrecio ? m_spnPrecio->value() : 0.0;
+    m_item.anchoPersianaFinal = m_spnAnchoFinal ? m_spnAnchoFinal->value() : 0.0;
+    m_item.anchoRolloUsado = m_spnAnchoRollo ? m_spnAnchoRollo->value() : 0.0;
+    m_item.alto = m_spnAlto ? m_spnAlto->value() : 0.0;
+    m_item.tarifa = (m_radT1 && m_radT1->isChecked()) ? "T1" : "PVP";
+
     double totalM2 = m_item.calcularMetrosCuadrados();
-    double total = m_item.calcularTotal();
+    double totalEuros = m_item.calcularTotal();
 
     if (m_item.unidad == "m²") {
-        double wCobrado = (m_item.anchoRolloUsado > 0) ? m_item.anchoRolloUsado : m_item.anchoPersianaFinal;
-        m_lblM2Calc->setText(QString("📐 Medidas por Persiana: <b>%1 mm</b> (rollo) × <b>%2 mm</b> (alto) = <b>%3 m² / ud.</b><br>Superficie Total Facturada: <b>%4 uds × %3 m² = %5 m²</b>").arg(
-            QString::number(wCobrado, 'f', 0),
-            QString::number(m_item.alto, 'f', 0),
-            QString::number(unitM2, 'f', 3),
-            QString::number(m_item.unidades, 'f', 0),
-            QString::number(totalM2, 'f', 3)
-        ));
-        m_lblTotalCalc->setText(QString("💰 Total Línea: <b>%1 €</b> (%2 m² × %3 €/m²)").arg(
-            QString::number(total, 'f', 2),
-            QString::number(totalM2, 'f', 3),
-            QString::number(m_item.precioUnitario, 'f', 2)
-        ));
+        double unitM2 = m_item.calcularMetrosCuadradosUnitario();
+        m_lblM2Calc->setText(QString("Superficie Total: %1 m² (%2 uds x %3 m² / ud)")
+            .arg(totalM2, 0, 'f', 3)
+            .arg(m_item.unidades, 0, 'f', 0)
+            .arg(unitM2, 0, 'f', 3));
     } else if (m_item.unidad == "ml.") {
-        double lCobrado = (m_item.anchoRolloUsado > 0) ? m_item.anchoRolloUsado : m_item.anchoPersianaFinal;
-        m_lblM2Calc->setText(QString("📏 Longitud por Perfil: <b>%1 mm</b> (Total: <b>%2 uds × %3 mm = %4 ml</b>)").arg(
-            QString::number(lCobrado, 'f', 0),
-            QString::number(m_item.unidades, 'f', 0),
-            QString::number(lCobrado, 'f', 0),
-            QString::number(totalM2, 'f', 2)
-        ));
-        m_lblTotalCalc->setText(QString("💰 Total Línea: <b>%1 €</b> (%2 ml × %3 €/ml)").arg(
-            QString::number(total, 'f', 2),
-            QString::number(totalM2, 'f', 2),
-            QString::number(m_item.precioUnitario, 'f', 2)
-        ));
+        double unitMl = m_item.calcularMetrosCuadradosUnitario();
+        m_lblM2Calc->setText(QString("Metros Lineales Totales: %1 ml (%2 uds x %3 ml / ud)")
+            .arg(totalM2, 0, 'f', 3)
+            .arg(m_item.unidades, 0, 'f', 0)
+            .arg(unitMl, 0, 'f', 3));
     } else {
-        m_lblM2Calc->setText(QString("📦 Facturación Directa por Unidad: <b>%1 uds</b>").arg(
-            QString::number(m_item.unidades, 'f', 0)
-        ));
-        m_lblTotalCalc->setText(QString("💰 Total Línea: <b>%1 €</b> (%2 uds × %3 €/ud)").arg(
-            QString::number(total, 'f', 2),
-            QString::number(m_item.unidades, 'f', 0),
-            QString::number(m_item.precioUnitario, 'f', 2)
-        ));
+        if (m_item.anchoPersianaFinal > 0.0 || m_item.alto > 0.0) {
+            m_lblM2Calc->setText(QString("Venta por unidad (%1 uds a %2 €/ud) | Medidas: %3 x %4 mm")
+                .arg(m_item.unidades, 0, 'f', 0)
+                .arg(m_item.precioUnitario, 0, 'f', 2)
+                .arg(m_item.anchoPersianaFinal > 0 ? QString::number(m_item.anchoPersianaFinal, 'f', 0) : "-")
+                .arg(m_item.alto > 0 ? QString::number(m_item.alto, 'f', 0) : "-"));
+        } else {
+            m_lblM2Calc->setText(QString("Venta por unidad (%1 uds a %2 €/ud)")
+                .arg(m_item.unidades, 0, 'f', 0)
+                .arg(m_item.precioUnitario, 0, 'f', 2));
+        }
     }
+
+    m_lblTotalCalc->setText(QString("Total Línea: %1 €").arg(totalEuros, 0, 'f', 2));
 }
 
 InvoiceItem LineItemDialog::getItem() const {
     InvoiceItem res = m_item;
-    res.desc = m_txtDesc->text().trimmed();
-    res.unidad = m_cmbUnidad->currentData().toString();
-    res.unidades = m_spnUnidades->value();
-    res.precioUnitario = m_spnPrecio->value();
-
-    if (res.unidad == "ud.") {
-        res.anchoPersianaFinal = 0.0;
-        res.anchoRolloUsado = 0.0;
-        res.alto = 0.0;
-    } else {
-        res.anchoPersianaFinal = m_spnAnchoFinal->value();
-        res.anchoRolloUsado = m_spnAnchoRollo->value();
-        res.alto = (res.unidad == "ml.") ? 0.0 : m_spnAlto->value();
-    }
+    if (m_txtCode) res.code = m_txtCode->text().trimmed();
+    if (m_txtDesc) res.desc = m_txtDesc->text().trimmed();
+    if (m_spnUnidades) res.unidades = m_spnUnidades->value();
+    if (m_spnPrecio) res.precioUnitario = m_spnPrecio->value();
+    if (m_spnAnchoFinal) res.anchoPersianaFinal = m_spnAnchoFinal->value();
+    if (m_spnAnchoRollo) res.anchoRolloUsado = m_spnAnchoRollo->value();
+    if (m_spnAlto) res.alto = m_spnAlto->value();
+    if (m_cmbUnidad) res.unidad = m_cmbUnidad->currentData().toString();
+    if (m_radT1) res.tarifa = m_radT1->isChecked() ? "T1" : "PVP";
     return res;
 }

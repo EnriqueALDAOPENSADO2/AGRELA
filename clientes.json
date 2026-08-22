@@ -231,17 +231,6 @@
         "telefono": ""
     },
     {
-        "alias": "ANDRES COLLAZO",
-        "cif_nif": "B - 70 530 811",
-        "direccion": "RUA DARWIN Nº 5 BAJO",
-        "email": "",
-        "file": "",
-        "nombre": "TECNICAS ESPECIALES DE REFORMAS S. L.",
-        "poblacion": "OLEIROS C. P. 15 172",
-        "provincia": "A CORUÑA",
-        "telefono": ""
-    },
-    {
         "alias": "ANDRES",
         "cif_nif": "B - 70 427 653",
         "direccion": "RUA DOS PRADOS Nº 8",
@@ -249,6 +238,17 @@
         "file": "",
         "nombre": "CORUÑA PROYECTOS INTERIORISMO S. L. U.",
         "poblacion": "OLEIROS C. P. 15 175",
+        "provincia": "A CORUÑA",
+        "telefono": ""
+    },
+    {
+        "alias": "ANDRES COLLAZO",
+        "cif_nif": "B - 70 530 811",
+        "direccion": "RUA DARWIN Nº 5 BAJO",
+        "email": "",
+        "file": "",
+        "nombre": "TECNICAS ESPECIALES DE REFORMAS S. L.",
+        "poblacion": "OLEIROS C. P. 15 172",
         "provincia": "A CORUÑA",
         "telefono": ""
     },
@@ -440,17 +440,6 @@
         "telefono": ""
     },
     {
-        "alias": "CANCELO HIJO",
-        "cif_nif": "34 899 106 - L",
-        "direccion": "CAMIÑO DO FIUNCHELO Nº 27 - 15",
-        "email": "",
-        "file": "",
-        "nombre": "JOSE Mª CANCELO PARDIÑAS",
-        "poblacion": "SADA C. P. 15 160",
-        "provincia": "A CORUÑA",
-        "telefono": ""
-    },
-    {
         "alias": "CANCELO",
         "cif_nif": "B 15449671",
         "direccion": "AVDA. CAIDOS 189 BAJO",
@@ -459,6 +448,17 @@
         "nombre": "CANCELO DECORACION S.L.",
         "poblacion": "LA CORUÑA C.P. 15009",
         "provincia": "LA CORUÑA",
+        "telefono": ""
+    },
+    {
+        "alias": "CANCELO HIJO",
+        "cif_nif": "34 899 106 - L",
+        "direccion": "CAMIÑO DO FIUNCHELO Nº 27 - 15",
+        "email": "",
+        "file": "",
+        "nombre": "JOSE Mª CANCELO PARDIÑAS",
+        "poblacion": "SADA C. P. 15 160",
+        "provincia": "A CORUÑA",
         "telefono": ""
     },
     {
@@ -803,23 +803,23 @@
         "telefono": ""
     },
     {
-        "alias": "HINIGOSAL F. MARIÑO",
-        "cif_nif": "E - 15 353 279",
-        "direccion": "C / BETANZOS Nº 4 5º C",
-        "email": "",
-        "file": "",
-        "nombre": "NICOLAS GOMEZ GONZALEZ Y OTRO C. B.",
-        "poblacion": "LA CORUÑA C.P. 15004",
-        "provincia": "LA CORUÑA",
-        "telefono": ""
-    },
-    {
         "alias": "HINIGOSAL",
         "cif_nif": "B 15641582",
         "direccion": "C/ BETANZOS Nº 4 5º C",
         "email": "",
         "file": "",
         "nombre": "HINIGOSAL S. L.",
+        "poblacion": "LA CORUÑA C.P. 15004",
+        "provincia": "LA CORUÑA",
+        "telefono": ""
+    },
+    {
+        "alias": "HINIGOSAL F. MARIÑO",
+        "cif_nif": "E - 15 353 279",
+        "direccion": "C / BETANZOS Nº 4 5º C",
+        "email": "",
+        "file": "",
+        "nombre": "NICOLAS GOMEZ GONZALEZ Y OTRO C. B.",
         "poblacion": "LA CORUÑA C.P. 15004",
         "provincia": "LA CORUÑA",
         "telefono": ""
@@ -1309,17 +1309,6 @@
         "telefono": ""
     },
     {
-        "alias": "LOPEZ CAO",
-        "cif_nif": "B 15072713",
-        "direccion": "Avd. FINISTERRE Nº 267",
-        "email": "",
-        "file": "",
-        "nombre": "CONSTRUCIONES LOPEZ CAO S.L.",
-        "poblacion": "LA CORUÑA C.P. 15008",
-        "provincia": "LA CORUÑA",
-        "telefono": ""
-    },
-    {
         "alias": "LOPEZ",
         "cif_nif": "47 353 462 -G",
         "direccion": "C / PEREZ LUGIN Nº 1 1º E",
@@ -1328,6 +1317,17 @@
         "nombre": "JAVIER LOPEZ SOUTO",
         "poblacion": "VILLARODIS ARTEIXO C. P. 15 141",
         "provincia": "A CORUÑA",
+        "telefono": ""
+    },
+    {
+        "alias": "LOPEZ CAO",
+        "cif_nif": "B 15072713",
+        "direccion": "Avd. FINISTERRE Nº 267",
+        "email": "",
+        "file": "",
+        "nombre": "CONSTRUCIONES LOPEZ CAO S.L.",
+        "poblacion": "LA CORUÑA C.P. 15008",
+        "provincia": "LA CORUÑA",
         "telefono": ""
     },
     {
@@ -1371,6 +1371,28 @@
         "file": "",
         "nombre": "LUNNAR ROJO S. L.",
         "poblacion": "A CORUÑA C. P. 15 006",
+        "provincia": "A CORUÑA",
+        "telefono": ""
+    },
+    {
+        "alias": "Mª JOSE BELLO LANDEIRA",
+        "cif_nif": "32 417 727 - D",
+        "direccion": "C / MANUEL MURGUIA Nº 34 4º A",
+        "email": "",
+        "file": "",
+        "nombre": "MARIA JOSE BELLO LANDEIRA",
+        "poblacion": "A CORUÑA C. P, 15 011",
+        "provincia": "A CORUÑA",
+        "telefono": ""
+    },
+    {
+        "alias": "Mª LUISA VALES",
+        "cif_nif": "",
+        "direccion": "PLAZA ZALAETA Nº 4 6º A",
+        "email": "",
+        "file": "",
+        "nombre": "Mª LUISA VALES LOPEZ",
+        "poblacion": "A CORUÑA C. P. 15 003",
         "provincia": "A CORUÑA",
         "telefono": ""
     },
@@ -1562,28 +1584,6 @@
         "telefono": ""
     },
     {
-        "alias": "Mª JOSE BELLO LANDEIRA",
-        "cif_nif": "32 417 727 - D",
-        "direccion": "C / MANUEL MURGUIA Nº 34 4º A",
-        "email": "",
-        "file": "",
-        "nombre": "MARIA JOSE BELLO LANDEIRA",
-        "poblacion": "A CORUÑA C. P, 15 011",
-        "provincia": "A CORUÑA",
-        "telefono": ""
-    },
-    {
-        "alias": "Mª LUISA VALES",
-        "cif_nif": "",
-        "direccion": "PLAZA ZALAETA Nº 4 6º A",
-        "email": "",
-        "file": "",
-        "nombre": "Mª LUISA VALES LOPEZ",
-        "poblacion": "A CORUÑA C. P. 15 003",
-        "provincia": "A CORUÑA",
-        "telefono": ""
-    },
-    {
         "alias": "NICO SECO",
         "cif_nif": "45 679 237 - H",
         "direccion": "C / REVOLUCION FRANCESA Nº 7 6º D",
@@ -1683,17 +1683,6 @@
         "telefono": ""
     },
     {
-        "alias": "PAMPIN 1",
-        "cif_nif": "B - 15 417 074",
-        "direccion": "POLIGONO DE POCOMACO PARCELA F9",
-        "email": "",
-        "file": "",
-        "nombre": "INMOVILIARIA SOLNAVES S. L.",
-        "poblacion": "MESOIRO C. P. 15 190",
-        "provincia": "A CORUÑA",
-        "telefono": ""
-    },
-    {
         "alias": "PAMPIN",
         "cif_nif": "B - 15 823 578",
         "direccion": "CALLE 2 PARCELA F - 10",
@@ -1701,6 +1690,17 @@
         "file": "",
         "nombre": "LOGISTICA INTERNACIONAL DEL NOROESTE S. L.",
         "poblacion": "PO. CO. MA. CO. C. P. 15 190",
+        "provincia": "A CORUÑA",
+        "telefono": ""
+    },
+    {
+        "alias": "PAMPIN 1",
+        "cif_nif": "B - 15 417 074",
+        "direccion": "POLIGONO DE POCOMACO PARCELA F9",
+        "email": "",
+        "file": "",
+        "nombre": "INMOVILIARIA SOLNAVES S. L.",
+        "poblacion": "MESOIRO C. P. 15 190",
         "provincia": "A CORUÑA",
         "telefono": ""
     },
@@ -2090,6 +2090,17 @@
         "telefono": ""
     },
     {
+        "alias": "victor geriatrico",
+        "cif_nif": "G 15400682",
+        "direccion": "C/ ARCO Nº 5 1º C.P. 15003",
+        "email": "",
+        "file": "",
+        "nombre": "ASOCIACION PROVINCIAL DE PENSIONISTAS",
+        "poblacion": "",
+        "provincia": "LA CORUÑA",
+        "telefono": ""
+    },
+    {
         "alias": "VICTOR VEIRA",
         "cif_nif": "76 305 253 - Q",
         "direccion": "OS PINOS Nº 10 ARTES",
@@ -2141,17 +2152,6 @@
         "file": "",
         "nombre": "ARQUEAL NOROESTE S. L.",
         "poblacion": "LAXE C.P. 15118",
-        "provincia": "LA CORUÑA",
-        "telefono": ""
-    },
-    {
-        "alias": "victor geriatrico",
-        "cif_nif": "G 15400682",
-        "direccion": "C/ ARCO Nº 5 1º C.P. 15003",
-        "email": "",
-        "file": "",
-        "nombre": "ASOCIACION PROVINCIAL DE PENSIONISTAS",
-        "poblacion": "",
         "provincia": "LA CORUÑA",
         "telefono": ""
     }

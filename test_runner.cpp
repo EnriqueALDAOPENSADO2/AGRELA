@@ -213,6 +213,24 @@ int main(int argc, char* argv[]) {
         std::cout << "  => PASSED!\n" << std::endl;
     }
 
+    // Test 7: Sincronización Nativa de Clientes en C++ y Lectura de Archivos Excel
+    {
+        std::cout << "[Test 7: Sincronización Nativa de Clientes en C++]" << std::endl;
+
+        bool syncOk = ClientService::instance().syncFolder("CARPETA CLIENTES", "clientes.json");
+        assert(syncOk);
+
+        const auto& allClients = ClientService::instance().getAllClients();
+        std::cout << "  Total clientes cargados: " << allClients.size() << std::endl;
+        assert(allClients.size() >= 190);
+
+        Customer alm = ClientService::instance().findByAlias("ALMAGAL");
+        std::cout << "  Cliente detectado: " << alm.nombre.toStdString() << " | CIF: " << alm.cifNif.toStdString() << std::endl;
+        assert(!alm.nombre.isEmpty());
+
+        std::cout << "  => PASSED!\n" << std::endl;
+    }
+
     std::cout << "========================================" << std::endl;
     std::cout << "  TODOS LOS TESTS DE CÁLCULO PASARON!   " << std::endl;
     std::cout << "========================================" << std::endl;

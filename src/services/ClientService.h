@@ -2,6 +2,7 @@
 
 #include <QVector>
 #include <QString>
+#include <QMap>
 #include "../models/Invoice.h"
 
 class ClientService {
@@ -10,12 +11,16 @@ public:
 
     bool loadClients(const QString& jsonPath = "clientes.json", const QString& folderPath = "CARPETA CLIENTES");
     bool loadFromExcel(const QString& xlsxPath = "clientes.xlsx");
+    bool saveToJson(const QString& jsonPath = "clientes.json");
+    bool saveToExcel(const QString& xlsxPath = "clientes.xlsx");
+
     const QVector<Customer>& getAllClients() const;
     QVector<Customer> search(const QString& text) const;
     Customer findByAlias(const QString& alias) const;
     Customer findByName(const QString& name) const;
 
-    bool scanFolder(const QString& folderPath = "CARPETA CLIENTES", const QString& outputJson = "clientes.json");
+    bool syncFolder(const QString& folderPath = "CARPETA CLIENTES", const QString& outputJson = "clientes.json");
+    static Customer parseClientFromXlsx(const QString& filePath, const QString& alias);
 
 private:
     ClientService() = default;

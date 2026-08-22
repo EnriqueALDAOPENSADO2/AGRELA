@@ -154,9 +154,15 @@ void ClientSelectorDialog::onSelectClicked() {
 }
 
 void ClientSelectorDialog::onRefreshFromFolderClicked() {
-    ClientService::instance().loadClients("clientes.json", "CARPETA CLIENTES");
+    bool ok = ClientService::instance().syncFolder("CARPETA CLIENTES", "clientes.json");
     onSearchChanged();
-    QMessageBox::information(this, "Actualizado", "Se ha actualizado el listado de clientes desde CARPETA CLIENTES.");
+    int count = ClientService::instance().getAllClients().size();
+    if (ok && count > 0) {
+        QMessageBox::information(this, "Clientes Actualizados", 
+            QString("Se ha actualizado el listado con éxito desde la carpeta de clientes.\nTotal clientes disponibles: %1").arg(count));
+    } else {
+        QMessageBox::warning(this, "Aviso", "No se encontraron clientes o la carpeta está vacía.");
+    }
 }
 
 Customer ClientSelectorDialog::getSelectedClient() const {
