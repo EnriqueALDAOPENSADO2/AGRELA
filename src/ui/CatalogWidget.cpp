@@ -1,5 +1,4 @@
 #include "CatalogWidget.h"
-#include "AddCatalogProductDialog.h"
 #include "../services/CatalogService.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -19,7 +18,7 @@ void CatalogWidget::setupUi() {
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(8);
 
-    // 1. Selector de Categoría / Sección con botón de creación y actualización
+    // 1. Selector de Categoría / Sección con botón de actualización en caliente
     auto* catLayout = new QHBoxLayout();
     auto* lblCat = new QLabel("Categoría:", this);
     lblCat->setStyleSheet("font-weight: 600; color: #1E293B; font-size: 12px;");
@@ -29,15 +28,6 @@ void CatalogWidget::setupUi() {
         "QComboBox { background-color: #FFFFFF; color: #1E293B; border: 1.5px solid #CBD5E1; border-radius: 6px; padding: 5px 8px; font-size: 13px; font-weight: 500; }"
         "QComboBox:focus { border: 1.5px solid #2B78C5; }"
         "QComboBox QAbstractItemView { background-color: #FFFFFF; color: #1E293B; selection-background-color: #D9E1F2; selection-color: #1F4E78; border: 1px solid #CBD5E1; }"
-    );
-
-    m_btnNewProduct = new QPushButton("➕ Nuevo Producto...", this);
-    m_btnNewProduct->setCursor(Qt::PointingHandCursor);
-    m_btnNewProduct->setToolTip("Añadir un nuevo producto personalizado al catálogo con sus precios PVP y T-1");
-    m_btnNewProduct->setStyleSheet(
-        "QPushButton { background-color: #EBF5FB; color: #1F4E78; border: 1.5px solid #2B78C5; border-radius: 6px; padding: 5px 10px; font-weight: bold; font-size: 11px; }"
-        "QPushButton:hover { background-color: #D9E1F2; }"
-        "QPushButton:pressed { background-color: #CBD5E1; }"
     );
 
     m_btnRefresh = new QPushButton("🔄 Actualizar", this);
@@ -51,7 +41,6 @@ void CatalogWidget::setupUi() {
 
     catLayout->addWidget(lblCat);
     catLayout->addWidget(m_categoryCombo, 1);
-    catLayout->addWidget(m_btnNewProduct);
     catLayout->addWidget(m_btnRefresh);
     layout->addLayout(catLayout);
 
@@ -116,27 +105,6 @@ void CatalogWidget::setupUi() {
     connect(m_table, &QTableWidget::cellDoubleClicked, this, &CatalogWidget::onRowDoubleClicked);
     connect(m_btnAdd, &QPushButton::clicked, this, &CatalogWidget::onAddClicked);
     connect(m_btnRefresh, &QPushButton::clicked, this, &CatalogWidget::onRefreshPreciosClicked);
-    connect(m_btnNewProduct, &QPushButton::clicked, this, &CatalogWidget::onNewProductClicked);
-}
-
-void CatalogWidget::onNewProductClicked() {
-    AddCatalogProductDialog dlg(this);
-    if (dlg.exec() == QDialog::Accepted) {
-        CatalogItem prod = dlg.getProduct();
-        CatalogService::instance().addCustomItem(prod);
-        refreshCategoryCombo();
-        
-        int idx = m_categoryCombo->findText(prod.sheet);
-        if (idx >= 0) {
-            m_categoryCombo->setCurrentIndex(idx);
-        }
-        
-        m_searchEdit->setText(prod.desc);
-        onSearchChanged();
-
-        QMessageBox::information(this, "Producto Guardado",
-            QString("El producto <b>%1</b> (Código: %2) se ha guardado en el catálogo con éxito en la sección <b>%3</b>.").arg(prod.desc, prod.code, prod.sheet));
-    }
 }
 
 void CatalogWidget::refreshCategoryCombo() {
@@ -179,48 +147,49 @@ void CatalogWidget::populateTable(const QVector<CatalogItem>& items) {
     for (int r = 0; r < items.size(); ++r) {
         const auto& it = items[r];
 
-        // Foto / Croquis
-        auto* imgItem = new QTableWidgetItem();
+        // Col 0: Foto Croquis
+        auto* itemImg = new QTableWidgetItem();
         if (!it.imgPath.isEmpty() && QFile::exists(it.imgPath)) {
-            QPixmap pix(it.imgPath);
-            imgItem->setIcon(QIcon(pix.scaled(42, 42, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+            itemImg->setIcon(QIcon(it.imgPath));
+        } else {
+            itemImg->setText("—");
+            itemImg->setTextAlignment(Qt::AlignCenter);
         }
-        imgItem->setTextAlignment(Qt::AlignCenter);
-        m_table->setItem(r, 0, imgItem);
+        m_table->setItem(r, 0, itemImg);
 
-        // Código
-        auto* codeItem = new QTableWidgetItem(it.code.isEmpty() ? "-" : it.code);
-        codeItem->setTextAlignment(Qt::AlignCenter);
-        codeItem->setFont(QFont("Arial", 9, QFont::Bold));
-        m_table->setItem(r, 1, codeItem);
+        // Col 1: Código
+        auto* itemCode = new QTableWidgetItem(it.code);
+        itemCode->setTextAlignment(Qt::AlignCenter);
+        QFont f = itemCode->font();
+        f.setBold(true);
+        itemCode->setFont(f);
+        m_table->setItem(r, 1, itemCode);
 
-        // Descripción
-        auto* descItem = new QTableWidgetItem(it.desc);
-        descItem->setToolTip(QString("<b>%1</b><br>Categoría: %2<br>Hoja: %3").arg(it.desc, it.category, it.sheet));
-        m_table->setItem(r, 2, descItem);
+        // Col 2: Descripción
+        auto* itemDesc = new QTableWidgetItem(it.desc);
+        itemDesc->setToolTip(it.desc);
+        m_table->setItem(r, 2, itemDesc);
 
-        // Precio PVP
+        // Col 3: PVP
         double pvpVal = (it.pvp > 0.0) ? it.pvp : it.p1;
-        auto* pvpItem = new QTableWidgetItem(pvpVal > 0 ? QString("%1 €").arg(pvpVal, 0, 'f', 2) : "-");
-        pvpItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        pvpItem->setFont(QFont("Arial", 9, QFont::Bold));
-        pvpItem->setForeground(QColor("#1F4E78"));
-        m_table->setItem(r, 3, pvpItem);
+        auto* itemPvp = new QTableWidgetItem(QString("%1 €").arg(pvpVal, 0, 'f', 2));
+        itemPvp->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        m_table->setItem(r, 3, itemPvp);
 
-        // Precio T-1
-        double t1Val = (it.t1 > 0.0) ? it.t1 : (it.p_t1 > 0.0 ? it.p_t1 : pvpVal);
-        auto* t1Item = new QTableWidgetItem(t1Val > 0 ? QString("%1 €").arg(t1Val, 0, 'f', 2) : "-");
-        t1Item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        t1Item->setFont(QFont("Arial", 9, QFont::Bold));
-        t1Item->setForeground(QColor("#166534"));
-        m_table->setItem(r, 4, t1Item);
+        // Col 4: Tarifa 1 (T-1)
+        double t1Val = (it.t1 > 0.0) ? it.t1 : ((it.p_t1 > 0.0) ? it.p_t1 : pvpVal);
+        auto* itemT1 = new QTableWidgetItem(QString("%1 €").arg(t1Val, 0, 'f', 2));
+        itemT1->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        itemT1->setForeground(QBrush(QColor("#1F4E78")));
+        m_table->setItem(r, 4, itemT1);
 
-        // Unidad
-        auto* unitItem = new QTableWidgetItem(it.u1.isEmpty() ? "ud." : it.u1);
-        unitItem->setTextAlignment(Qt::AlignCenter);
-        m_table->setItem(r, 5, unitItem);
+        // Col 5: Unidad
+        QString unitStr = it.u1.isEmpty() ? "ud." : it.u1;
+        auto* itemUnit = new QTableWidgetItem(unitStr);
+        itemUnit->setTextAlignment(Qt::AlignCenter);
+        m_table->setItem(r, 5, itemUnit);
 
-        m_table->setRowHeight(r, 46);
+        m_table->setRowHeight(r, 48);
     }
 }
 
@@ -235,6 +204,6 @@ void CatalogWidget::onAddClicked() {
     if (row >= 0 && row < m_currentItems.size()) {
         emit itemSelected(m_currentItems[row]);
     } else {
-        QMessageBox::information(this, "Aviso", "Por favor, selecciona un artículo de la tabla del catálogo.");
+        QMessageBox::information(this, "Aviso", "Por favor selecciona un artículo de la tabla antes de añadirlo a la factura.");
     }
 }

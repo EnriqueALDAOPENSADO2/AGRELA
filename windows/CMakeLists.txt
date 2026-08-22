@@ -47,8 +47,6 @@ set(SOURCES
     src/ui/LineItemDialog.cpp
     src/ui/ClientSelectorDialog.h
     src/ui/ClientSelectorDialog.cpp
-    src/ui/AddCatalogProductDialog.h
-    src/ui/AddCatalogProductDialog.cpp
     src/ui/CatalogWidget.h
     src/ui/CatalogWidget.cpp
     src/ui/MainWindow.h

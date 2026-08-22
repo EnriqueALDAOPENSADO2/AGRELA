@@ -329,7 +329,15 @@ void MainWindow::setupLinesTable() {
     layout->addWidget(m_tableLines);
 
     auto* btnLayout = new QHBoxLayout();
-    auto* btnAddCustom = new QPushButton("➕ Añadir Línea Libre", this);
+    auto* btnAddCustom = new QPushButton("➕ Añadir Producto Manual (Fuera de Catálogo)", this);
+    btnAddCustom->setCursor(Qt::PointingHandCursor);
+    btnAddCustom->setToolTip("Añadir manualmente cualquier producto fuera de catálogo (Flexol, Mosquiflex, etc.) con su nombre, precio, unidades y medidas.");
+    btnAddCustom->setStyleSheet(
+        "QPushButton { background-color: #EBF5FB; color: #1F4E78; border: 1.5px solid #2B78C5; border-radius: 6px; padding: 7px 14px; font-weight: bold; font-size: 12px; }"
+        "QPushButton:hover { background-color: #D9E1F2; }"
+        "QPushButton:pressed { background-color: #CBD5E1; }"
+    );
+
     auto* btnEdit = new QPushButton("✏️ Editar Línea", this);
     auto* btnDelete = new QPushButton("🗑️ Eliminar Línea", this);
     auto* btnUp = new QPushButton("⬆️ Subir", this);
@@ -340,7 +348,6 @@ void MainWindow::setupLinesTable() {
         "QPushButton:hover { background-color: #E2E8F0; }"
         "QPushButton:pressed { background-color: #CBD5E1; }";
 
-    btnAddCustom->setStyleSheet(btnStyle);
     btnEdit->setStyleSheet(btnStyle);
     btnDelete->setStyleSheet(btnStyle);
     btnUp->setStyleSheet(btnStyle);
@@ -523,13 +530,19 @@ void MainWindow::onCatalogItemSelected(const CatalogItem& catItem) {
 
 void MainWindow::onAddCustomLine() {
     InvoiceItem emptyItem;
-    emptyItem.desc = "Artículo personalizado";
+    emptyItem.code = "";
+    emptyItem.desc = "";
     emptyItem.unidades = 1.0;
     emptyItem.tarifa = m_cmbTarifa ? m_cmbTarifa->currentData().toString() : "PVP";
     emptyItem.precioUnitario = 0.0;
+    emptyItem.unidad = "ud.";
     LineItemDialog dlg(emptyItem, this);
     if (dlg.exec() == QDialog::Accepted) {
-        m_currentInvoice.items.append(dlg.getItem());
+        InvoiceItem result = dlg.getItem();
+        if (result.desc.trimmed().isEmpty()) {
+            result.desc = "Artículo Manual";
+        }
+        m_currentInvoice.items.append(result);
         refreshInvoiceTable();
     }
 }

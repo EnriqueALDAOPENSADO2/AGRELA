@@ -24,7 +24,6 @@ private slots:
     void onRowDoubleClicked(int row, int col);
     void onAddClicked();
     void onRefreshPreciosClicked();
-    void onNewProductClicked();
 
 private:
     void setupUi();
@@ -37,7 +36,6 @@ private:
     QTableWidget* m_table = nullptr;
     QPushButton* m_btnAdd = nullptr;
     QPushButton* m_btnRefresh = nullptr;
-    QPushButton* m_btnNewProduct = nullptr;
 
     QVector<CatalogItem> m_currentItems;
 };
