@@ -240,6 +240,35 @@ def extract_all_catalog_precios(precios_dir="PRECIOS", output_json="catalog.json
                         "p1": pvp, "p_t1": t1, "img_path": get_img(code, desc, "Venecianas")
                     }
 
+    # 6. FLEXOL ENERO 2026.xlsx (Los Tejidos Técnicos)
+    flx_files = [os.path.join(precios_dir, "FLEXOL ENERO 2026.xlsx"), os.path.join(precios_dir, "flexol.xlsx")]
+    flx_xlsx = next((f for f in flx_files if os.path.exists(f)), None)
+    if flx_xlsx:
+        wb = openpyxl.load_workbook(flx_xlsx, data_only=True)
+        ws = wb.active
+        for r in range(2, ws.max_row + 1):
+            code = clean_code(ws.cell(r, 1).value)
+            category = str(ws.cell(r, 2).value or "Los Tejidos Técnicos").strip()
+            desc = str(ws.cell(r, 3).value or "").strip()
+            pvp = clean_float(ws.cell(r, 4).value)
+            t1 = clean_float(ws.cell(r, 5).value)
+            unit = str(ws.cell(r, 6).value or "m²").strip()
+            if code and desc and pvp > 0:
+                if t1 <= 0:
+                    t1 = round(pvp * 0.75, 2)
+                products_map[code] = {
+                    "sheet": "Flexol",
+                    "category": category,
+                    "code": code,
+                    "desc": desc,
+                    "pvp": pvp,
+                    "t1": t1,
+                    "u1": unit,
+                    "p1": pvp,
+                    "p_t1": t1,
+                    "img_path": get_img(code, desc, category)
+                }
+
     # Si hay productos personalizados añadidos previamente en precios_catalogo.xlsx o catalog.json, conservarlos
     if os.path.exists(output_json):
         try:
