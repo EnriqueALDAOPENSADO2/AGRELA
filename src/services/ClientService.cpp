@@ -28,6 +28,182 @@ static QString stripAccents(const QString& str) {
     return result.toLower();
 }
 
+Customer ClientService::parseClientFromXls(const QString& filePath, const QString& alias) {
+    Customer c;
+    c.alias = alias.trimmed();
+    c.nombre = alias.trimmed();
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return c;
+    }
+    QByteArray data = file.readAll();
+    file.close();
+
+    // 1. Buscar posiciones de inicio BOF de BIFF (0x0809)
+    QVector<int> bofPositions;
+    int searchIdx = 0;
+    while (true) {
+        int idx = data.indexOf("\x09\x08", searchIdx);
+        if (idx == -1) break;
+        bofPositions.append(idx);
+        searchIdx = idx + 2;
+    }
+
+    QMap<QPair<int, int>, QString> cellStrings;
+
+    for (int startPos : bofPositions) {
+        int pos = startPos;
+        QVector<QString> sstStrings;
+
+        while (pos + 4 <= data.size()) {
+            quint16 recType = *reinterpret_cast<const quint16*>(data.constData() + pos);
+            quint16 recLen = *reinterpret_cast<const quint16*>(data.constData() + pos + 2);
+            pos += 4;
+            if (pos + recLen > data.size()) break;
+            const char* recData = data.constData() + pos;
+            pos += recLen;
+
+            // SST record 0x00FC (Shared String Table)
+            if (recType == 0x00FC && recLen >= 8) {
+                quint32 numUnique = *reinterpret_cast<const quint32*>(recData + 4);
+                int p = 8;
+                for (quint32 i = 0; i < numUnique; ++i) {
+                    if (p + 3 > recLen) break;
+                    quint16 cch = *reinterpret_cast<const quint16*>(recData + p);
+                    quint8 flags = *reinterpret_cast<const quint8*>(recData + p + 2);
+                    p += 3;
+                    bool isUnicode = (flags & 0x01) != 0;
+                    bool hasRich = (flags & 0x08) != 0;
+                    bool hasPhonetic = (flags & 0x04) != 0;
+                    quint16 richCount = 0;
+                    quint32 phoneticSize = 0;
+                    if (hasRich) {
+                        if (p + 2 <= recLen) {
+                            richCount = *reinterpret_cast<const quint16*>(recData + p);
+                            p += 2;
+                        }
+                    }
+                    if (hasPhonetic) {
+                        if (p + 4 <= recLen) {
+                            phoneticSize = *reinterpret_cast<const quint32*>(recData + p);
+                            p += 4;
+                        }
+                    }
+                    int byteLen = isUnicode ? (cch * 2) : cch;
+                    if (p + byteLen > recLen) break;
+                    QString str;
+                    if (isUnicode) {
+                        str = QString::fromUtf16(reinterpret_cast<const char16_t*>(recData + p), cch);
+                    } else {
+                        str = QString::fromLatin1(recData + p, cch);
+                    }
+                    p += byteLen;
+                    p += richCount * 4;
+                    p += phoneticSize;
+                    sstStrings.append(str.trimmed());
+                }
+            }
+            // LABELSST record 0x00FD
+            else if (recType == 0x00FD && recLen >= 10) {
+                quint16 row = *reinterpret_cast<const quint16*>(recData);
+                quint16 col = *reinterpret_cast<const quint16*>(recData + 2);
+                quint32 sstIdx = *reinterpret_cast<const quint32*>(recData + 6);
+                if (static_cast<int>(sstIdx) < sstStrings.size()) {
+                    cellStrings[qMakePair(static_cast<int>(row), static_cast<int>(col))] = sstStrings[sstIdx];
+                }
+            }
+            // LABEL record 0x0004 o 0x0204
+            else if ((recType == 0x0004 || recType == 0x0204) && recLen >= 8) {
+                quint16 row = *reinterpret_cast<const quint16*>(recData);
+                quint16 col = *reinterpret_cast<const quint16*>(recData + 2);
+                quint16 cch = *reinterpret_cast<const quint16*>(recData + 6);
+                if (recLen >= 8 + cch) {
+                    QString str = QString::fromLatin1(recData + 8, cch).trimmed();
+                    cellStrings[qMakePair(static_cast<int>(row), static_cast<int>(col))] = str;
+                }
+            }
+        }
+    }
+
+    // Extraer campos a partir de cellStrings
+    for (auto it = cellStrings.begin(); it != cellStrings.end(); ++it) {
+        int r = it.key().first;
+        int col = it.key().second;
+        QString val = it.value();
+        QString valLow = stripAccents(val);
+
+        auto getNextVal = [&](int rowIdx, int colIdx) -> QString {
+            if (cellStrings.contains(qMakePair(rowIdx, colIdx + 1))) {
+                QString v = cellStrings[qMakePair(rowIdx, colIdx + 1)].trimmed();
+                if (!v.isEmpty()) return v;
+            }
+            if (cellStrings.contains(qMakePair(rowIdx, colIdx + 2))) {
+                QString v = cellStrings[qMakePair(rowIdx, colIdx + 2)].trimmed();
+                if (!v.isEmpty()) return v;
+            }
+            return "";
+        };
+
+        if (valLow == "nombre" || valLow == "nombre:") {
+            if (c.nombre == alias || c.nombre.isEmpty()) {
+                QString v = getNextVal(r, col);
+                if (!v.isEmpty()) c.nombre = v;
+            }
+        } else if (valLow.contains("direcci") || valLow.contains("domicilio")) {
+            if (c.direccion.isEmpty()) {
+                QString v = getNextVal(r, col);
+                if (!v.isEmpty()) c.direccion = v;
+            }
+        } else if (valLow.contains("poblaci")) {
+            if (c.poblacion.isEmpty()) {
+                QString v = getNextVal(r, col);
+                if (!v.isEmpty()) c.poblacion = v;
+            }
+        } else if (valLow.contains("provincia")) {
+            if (c.provincia.isEmpty()) {
+                QString v = getNextVal(r, col);
+                if (!v.isEmpty()) c.provincia = v;
+            }
+        } else if ((valLow.contains("cif") || valLow.contains("nif") || valLow.contains("d.n.i")) && !val.contains("52434449")) {
+            if (c.cifNif.isEmpty()) {
+                QString v = getNextVal(r, col);
+                if (!v.isEmpty() && !v.contains("52434449")) c.cifNif = v;
+            }
+        }
+    }
+
+    // Fallback: Si no se encontró celda pero hay texto plano
+    if (c.nombre.isEmpty() || c.nombre == alias) {
+        QRegularExpression rx("[\\x20-\\x7E\\xA0-\\xFF]{3,}");
+        auto matchIt = rx.globalMatch(QString::fromLatin1(data));
+        QStringList strings;
+        while (matchIt.hasNext()) {
+            strings.append(matchIt.next().captured().trimmed());
+        }
+        for (int i = 0; i < strings.size(); ++i) {
+            QString sLow = stripAccents(strings[i]);
+            if (sLow == "nombre" && i + 1 < strings.size() && c.nombre == alias) {
+                c.nombre = strings[i + 1];
+            } else if (sLow.contains("direcci") && i + 1 < strings.size() && c.direccion.isEmpty()) {
+                c.direccion = strings[i + 1];
+            } else if (sLow.contains("poblaci") && i + 1 < strings.size() && c.poblacion.isEmpty()) {
+                c.poblacion = strings[i + 1];
+            } else if (sLow.contains("provincia") && i + 1 < strings.size() && c.provincia.isEmpty()) {
+                c.provincia = strings[i + 1];
+            } else if ((sLow.contains("cif") || sLow.contains("nif")) && i + 1 < strings.size() && c.cifNif.isEmpty() && !strings[i].contains("52434449")) {
+                c.cifNif = strings[i + 1];
+            }
+        }
+    }
+
+    if (c.nombre.isEmpty() || c.nombre.contains("Juan Manuel", Qt::CaseInsensitive) || c.nombre == "DATOS DEL CLIENTE") {
+        c.nombre = c.alias;
+    }
+
+    return c;
+}
+
 Customer ClientService::parseClientFromXlsx(const QString& filePath, const QString& alias) {
     Customer c;
     c.alias = alias.trimmed();
@@ -42,69 +218,41 @@ Customer ClientService::parseClientFromXlsx(const QString& filePath, const QStri
         const auto& row = rows[r];
         for (int col = 0; col < row.size(); ++col) {
             QString cellStr = stripAccents(row[col].trimmed());
-            
-            // Buscar etiquetas y extraer valor de la siguiente columna con texto
-            if (cellStr.contains("nombre") && (c.nombre == alias || c.nombre.isEmpty())) {
-                for (int nextCol = col + 1; nextCol < row.size(); ++nextCol) {
+
+            auto getNextVal = [&](int cIdx) -> QString {
+                for (int nextCol = cIdx + 1; nextCol < row.size(); ++nextCol) {
                     QString val = row[nextCol].trimmed();
-                    if (!val.isEmpty()) {
-                        c.nombre = val;
-                        break;
-                    }
+                    if (!val.isEmpty()) return val;
                 }
+                return "";
+            };
+
+            if ((cellStr == "nombre" || cellStr == "nombre:" || cellStr.startsWith("nombre ")) && (c.nombre == alias || c.nombre.isEmpty())) {
+                QString v = getNextVal(col);
+                if (!v.isEmpty()) c.nombre = v;
             } else if ((cellStr.contains("direcci") || cellStr.contains("domicilio")) && c.direccion.isEmpty()) {
-                for (int nextCol = col + 1; nextCol < row.size(); ++nextCol) {
-                    QString val = row[nextCol].trimmed();
-                    if (!val.isEmpty()) {
-                        c.direccion = val;
-                        break;
-                    }
-                }
+                QString v = getNextVal(col);
+                if (!v.isEmpty()) c.direccion = v;
             } else if (cellStr.contains("poblaci") && c.poblacion.isEmpty()) {
-                for (int nextCol = col + 1; nextCol < row.size(); ++nextCol) {
-                    QString val = row[nextCol].trimmed();
-                    if (!val.isEmpty()) {
-                        c.poblacion = val;
-                        break;
-                    }
-                }
+                QString v = getNextVal(col);
+                if (!v.isEmpty()) c.poblacion = v;
             } else if (cellStr.contains("provincia") && c.provincia.isEmpty()) {
-                for (int nextCol = col + 1; nextCol < row.size(); ++nextCol) {
-                    QString val = row[nextCol].trimmed();
-                    if (!val.isEmpty()) {
-                        c.provincia = val;
-                        break;
-                    }
-                }
+                QString v = getNextVal(col);
+                if (!v.isEmpty()) c.provincia = v;
             } else if ((cellStr.contains("cif") || cellStr.contains("nif") || cellStr.contains("d.n.i")) && c.cifNif.isEmpty()) {
-                for (int nextCol = col + 1; nextCol < row.size(); ++nextCol) {
-                    QString val = row[nextCol].trimmed();
-                    if (!val.isEmpty() && !val.contains("52434449")) { // evitar DNI propio de cabecera
-                        c.cifNif = val;
-                        break;
-                    }
-                }
+                QString v = getNextVal(col);
+                if (!v.isEmpty() && !v.contains("52434449")) c.cifNif = v;
             } else if ((cellStr.contains("telefono") || cellStr.contains("tfno") || cellStr.contains("tel.")) && c.telefono.isEmpty()) {
-                for (int nextCol = col + 1; nextCol < row.size(); ++nextCol) {
-                    QString val = row[nextCol].trimmed();
-                    if (!val.isEmpty()) {
-                        c.telefono = val;
-                        break;
-                    }
-                }
+                QString v = getNextVal(col);
+                if (!v.isEmpty()) c.telefono = v;
             } else if ((cellStr.contains("email") || cellStr.contains("correo")) && c.email.isEmpty()) {
-                for (int nextCol = col + 1; nextCol < row.size(); ++nextCol) {
-                    QString val = row[nextCol].trimmed();
-                    if (!val.isEmpty()) {
-                        c.email = val;
-                        break;
-                    }
-                }
+                QString v = getNextVal(col);
+                if (!v.isEmpty()) c.email = v;
             }
         }
     }
 
-    if (c.nombre.isEmpty() || c.nombre.contains("Juan Manuel", Qt::CaseInsensitive) || c.nombre.contains("DATOS DEL CLIENTE", Qt::CaseInsensitive)) {
+    if (c.nombre.isEmpty() || c.nombre.contains("Juan Manuel", Qt::CaseInsensitive) || c.nombre == "DATOS DEL CLIENTE") {
         c.nombre = c.alias;
     }
 
@@ -163,6 +311,46 @@ bool ClientService::saveToJson(const QString& jsonPath) {
     return false;
 }
 
+void ClientService::addOrUpdateClient(const Customer& c) {
+    QString key = stripAccents(c.alias.isEmpty() ? c.nombre : c.alias);
+    if (key.isEmpty()) return;
+
+    bool found = false;
+    for (int i = 0; i < m_clients.size(); ++i) {
+        QString itemKey = stripAccents(m_clients[i].alias.isEmpty() ? m_clients[i].nombre : m_clients[i].alias);
+        if (itemKey == key || (!c.cifNif.isEmpty() && m_clients[i].cifNif.compare(c.cifNif, Qt::CaseInsensitive) == 0)) {
+            m_clients[i] = c;
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        m_clients.append(c);
+        std::sort(m_clients.begin(), m_clients.end(), [](const Customer& a, const Customer& b) {
+            QString nameA = a.alias.isEmpty() ? a.nombre : a.alias;
+            QString nameB = b.alias.isEmpty() ? b.nombre : b.alias;
+            return nameA.localeAwareCompare(nameB) < 0;
+        });
+    }
+
+    saveToJson("clientes.json");
+}
+
+bool ClientService::deleteClient(const QString& aliasOrName) {
+    QString key = stripAccents(aliasOrName);
+    for (int i = 0; i < m_clients.size(); ++i) {
+        QString aKey = stripAccents(m_clients[i].alias);
+        QString nKey = stripAccents(m_clients[i].nombre);
+        if (aKey == key || nKey == key) {
+            m_clients.removeAt(i);
+            saveToJson("clientes.json");
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ClientService::syncFolder(const QString& folderPath, const QString& outputJson) {
     QMap<QString, Customer> clientMap;
 
@@ -207,17 +395,24 @@ bool ClientService::syncFolder(const QString& folderPath, const QString& outputJ
             QString alias = fi.completeBaseName();
             QString key = stripAccents(alias);
 
+            Customer parsed;
             if (fi.suffix().compare("xlsx", Qt::CaseInsensitive) == 0) {
-                Customer parsed = parseClientFromXlsx(fi.absoluteFilePath(), alias);
-                if (!parsed.nombre.isEmpty()) {
-                    clientMap[key] = parsed;
-                }
+                parsed = parseClientFromXlsx(fi.absoluteFilePath(), alias);
             } else {
-                if (!clientMap.contains(key)) {
-                    Customer c;
-                    c.alias = alias;
-                    c.nombre = alias;
-                    clientMap[key] = c;
+                parsed = parseClientFromXls(fi.absoluteFilePath(), alias);
+            }
+
+            if (!parsed.nombre.isEmpty()) {
+                // Si el cliente ya existía pero el archivo tiene campos más completos, actualizarlos
+                if (clientMap.contains(key)) {
+                    Customer& existing = clientMap[key];
+                    if (existing.nombre.isEmpty() || existing.nombre == alias) existing.nombre = parsed.nombre;
+                    if (existing.cifNif.isEmpty()) existing.cifNif = parsed.cifNif;
+                    if (existing.direccion.isEmpty()) existing.direccion = parsed.direccion;
+                    if (existing.poblacion.isEmpty()) existing.poblacion = parsed.poblacion;
+                    if (existing.provincia.isEmpty()) existing.provincia = parsed.provincia;
+                } else {
+                    clientMap[key] = parsed;
                 }
             }
         }

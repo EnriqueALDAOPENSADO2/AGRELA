@@ -47,6 +47,8 @@ set(SOURCES
     src/ui/LineItemDialog.cpp
     src/ui/ClientSelectorDialog.h
     src/ui/ClientSelectorDialog.cpp
+    src/ui/EditClientDialog.h
+    src/ui/EditClientDialog.cpp
     src/ui/CatalogWidget.h
     src/ui/CatalogWidget.cpp
     src/ui/MainWindow.h
@@ -94,6 +96,7 @@ add_executable(test_render_ui
     src/services/InvoiceGeneratorService.cpp
     src/ui/LineItemDialog.cpp
     src/ui/ClientSelectorDialog.cpp
+    src/ui/EditClientDialog.cpp
     src/ui/CatalogWidget.cpp
     src/ui/MainWindow.cpp
 )

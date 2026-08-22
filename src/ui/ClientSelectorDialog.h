@@ -20,6 +20,9 @@ private slots:
     void onRowDoubleClicked(int row, int col);
     void onSelectClicked();
     void onRefreshFromFolderClicked();
+    void onAddClientClicked();
+    void onEditClientClicked();
+    void onDeleteClientClicked();
 
 private:
     void setupUi();
@@ -30,6 +33,9 @@ private:
     QTableWidget* m_table = nullptr;
     QPushButton* m_btnSelect = nullptr;
     QPushButton* m_btnRefresh = nullptr;
+    QPushButton* m_btnAdd = nullptr;
+    QPushButton* m_btnEdit = nullptr;
+    QPushButton* m_btnDelete = nullptr;
 
     QVector<Customer> m_currentList;
     Customer m_selectedClient;

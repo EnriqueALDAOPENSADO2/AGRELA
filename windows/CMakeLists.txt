@@ -47,6 +47,8 @@ set(SOURCES
     src/ui/LineItemDialog.cpp
     src/ui/ClientSelectorDialog.h
     src/ui/ClientSelectorDialog.cpp
+    src/ui/EditClientDialog.h
+    src/ui/EditClientDialog.cpp
     src/ui/CatalogWidget.h
     src/ui/CatalogWidget.cpp
     src/ui/MainWindow.h
@@ -58,13 +60,22 @@ set(RESOURCES
 )
 
 if(WIN32)
-    set(WIN_RESOURCES app.rc)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/windows/app.rc")
+        list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/windows/app.rc")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/windows/app_icon.rc")
+        list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/windows/app_icon.rc")
+    endif()
 endif()
 
-add_executable(agrela_facturacion ${SOURCES} ${RESOURCES} ${WIN_RESOURCES})
+add_executable(agrela_facturacion
+    ${SOURCES}
+    ${RESOURCES}
+)
 
 if(WIN32)
-    set_target_properties(agrela_facturacion PROPERTIES WIN32_EXECUTABLE TRUE)
+    set_target_properties(agrela_facturacion PROPERTIES
+        WIN32_EXECUTABLE TRUE
+    )
 endif()
 
 target_link_libraries(agrela_facturacion PRIVATE
@@ -85,6 +96,7 @@ add_executable(test_render_ui
     src/services/InvoiceGeneratorService.cpp
     src/ui/LineItemDialog.cpp
     src/ui/ClientSelectorDialog.cpp
+    src/ui/EditClientDialog.cpp
     src/ui/CatalogWidget.cpp
     src/ui/MainWindow.cpp
 )

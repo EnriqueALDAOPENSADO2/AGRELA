@@ -1,4 +1,5 @@
 #include "ClientSelectorDialog.h"
+#include "EditClientDialog.h"
 #include "../services/ClientService.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -7,8 +8,8 @@
 
 ClientSelectorDialog::ClientSelectorDialog(QWidget* parent)
     : QDialog(parent) {
-    setWindowTitle("Directorio de Clientes - CARPETA CLIENTES");
-    resize(980, 580);
+    setWindowTitle("Directorio de Clientes - Persianas A Grela");
+    resize(1020, 600);
     setStyleSheet("background-color: #F8FAFC; color: #1E293B;");
 
     setupUi();
@@ -30,6 +31,24 @@ void ClientSelectorDialog::setupUi() {
         "QLineEdit:focus { border: 1.5px solid #2B78C5; }"
     );
 
+    m_btnAdd = new QPushButton("➕ Añadir Cliente", this);
+    m_btnAdd->setStyleSheet(
+        "QPushButton { background-color: #10B981; color: #FFFFFF; border: none; border-radius: 6px; padding: 8px 14px; font-weight: bold; font-size: 12px; }"
+        "QPushButton:hover { background-color: #059669; }"
+    );
+
+    m_btnEdit = new QPushButton("✏️ Editar", this);
+    m_btnEdit->setStyleSheet(
+        "QPushButton { background-color: #3B82F6; color: #FFFFFF; border: none; border-radius: 6px; padding: 8px 14px; font-weight: bold; font-size: 12px; }"
+        "QPushButton:hover { background-color: #2563EB; }"
+    );
+
+    m_btnDelete = new QPushButton("🗑️ Eliminar", this);
+    m_btnDelete->setStyleSheet(
+        "QPushButton { background-color: #EF4444; color: #FFFFFF; border: none; border-radius: 6px; padding: 8px 14px; font-weight: bold; font-size: 12px; }"
+        "QPushButton:hover { background-color: #DC2626; }"
+    );
+
     m_btnRefresh = new QPushButton("🔄 Actualizar Carpeta", this);
     m_btnRefresh->setStyleSheet(
         "QPushButton { background-color: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; border-radius: 6px; padding: 8px 14px; font-weight: 600; font-size: 12px; }"
@@ -37,6 +56,9 @@ void ClientSelectorDialog::setupUi() {
     );
 
     topLayout->addWidget(m_searchEdit, 1);
+    topLayout->addWidget(m_btnAdd);
+    topLayout->addWidget(m_btnEdit);
+    topLayout->addWidget(m_btnDelete);
     topLayout->addWidget(m_btnRefresh);
     layout->addLayout(topLayout);
 
@@ -80,6 +102,7 @@ void ClientSelectorDialog::setupUi() {
     );
 
     m_btnSelect = new QPushButton("✔️ Cargar Cliente Seleccionado en la Factura", this);
+    m_btnSelect->setCursor(Qt::PointingHandCursor);
     m_btnSelect->setStyleSheet(
         "QPushButton { background-color: #27AE60; color: #FFFFFF; font-weight: bold; font-size: 13px; padding: 8px 18px; border-radius: 6px; border: none; }"
         "QPushButton:hover { background-color: #219653; }"
@@ -92,6 +115,9 @@ void ClientSelectorDialog::setupUi() {
     layout->addLayout(bottomLayout);
 
     connect(m_searchEdit, &QLineEdit::textChanged, this, &ClientSelectorDialog::onSearchChanged);
+    connect(m_btnAdd, &QPushButton::clicked, this, &ClientSelectorDialog::onAddClientClicked);
+    connect(m_btnEdit, &QPushButton::clicked, this, &ClientSelectorDialog::onEditClientClicked);
+    connect(m_btnDelete, &QPushButton::clicked, this, &ClientSelectorDialog::onDeleteClientClicked);
     connect(m_btnRefresh, &QPushButton::clicked, this, &ClientSelectorDialog::onRefreshFromFolderClicked);
     connect(m_table, &QTableWidget::cellDoubleClicked, this, &ClientSelectorDialog::onRowDoubleClicked);
     connect(m_btnSelect, &QPushButton::clicked, this, &ClientSelectorDialog::onSelectClicked);
@@ -106,7 +132,7 @@ void ClientSelectorDialog::onSearchChanged() {
 
 void ClientSelectorDialog::populateTable(const QVector<Customer>& clients) {
     m_table->setRowCount(clients.size());
-    m_lblCount->setText(QString("Mostrando %1 clientes de la CARPETA CLIENTES").arg(clients.size()));
+    m_lblCount->setText(QString("Mostrando %1 clientes en la base de datos").arg(clients.size()));
 
     for (int r = 0; r < clients.size(); ++r) {
         const auto& c = clients[r];
@@ -162,6 +188,68 @@ void ClientSelectorDialog::onRefreshFromFolderClicked() {
             QString("Se ha actualizado el listado con éxito desde la carpeta de clientes.\nTotal clientes disponibles: %1").arg(count));
     } else {
         QMessageBox::warning(this, "Aviso", "No se encontraron clientes o la carpeta está vacía.");
+    }
+}
+
+void ClientSelectorDialog::onAddClientClicked() {
+    EditClientDialog dlg(Customer(), this);
+    if (dlg.exec() == QDialog::Accepted) {
+        Customer newC = dlg.getClient();
+        ClientService::instance().addOrUpdateClient(newC);
+        onSearchChanged();
+        
+        // Seleccionar la fila recién añadida
+        for (int r = 0; r < m_currentList.size(); ++r) {
+            if (m_currentList[r].nombre == newC.nombre || m_currentList[r].alias == newC.alias) {
+                m_table->selectRow(r);
+                break;
+            }
+        }
+    }
+}
+
+void ClientSelectorDialog::onEditClientClicked() {
+    int row = m_table->currentRow();
+    if (row < 0 || row >= m_currentList.size()) {
+        QMessageBox::information(this, "Aviso", "Por favor, selecciona un cliente de la tabla para editarlo.");
+        return;
+    }
+
+    Customer clientToEdit = m_currentList[row];
+    EditClientDialog dlg(clientToEdit, this);
+    if (dlg.exec() == QDialog::Accepted) {
+        Customer updated = dlg.getClient();
+        ClientService::instance().addOrUpdateClient(updated);
+        onSearchChanged();
+
+        for (int r = 0; r < m_currentList.size(); ++r) {
+            if (m_currentList[r].nombre == updated.nombre || m_currentList[r].alias == updated.alias) {
+                m_table->selectRow(r);
+                break;
+            }
+        }
+    }
+}
+
+void ClientSelectorDialog::onDeleteClientClicked() {
+    int row = m_table->currentRow();
+    if (row < 0 || row >= m_currentList.size()) {
+        QMessageBox::information(this, "Aviso", "Por favor, selecciona un cliente de la tabla para eliminarlo.");
+        return;
+    }
+
+    Customer clientToDelete = m_currentList[row];
+    auto res = QMessageBox::question(
+        this, 
+        "Confirmar Eliminación", 
+        QString("¿Estás seguro de que deseas eliminar al cliente '%1' de la lista?").arg(clientToDelete.nombre),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No
+    );
+
+    if (res == QMessageBox::Yes) {
+        ClientService::instance().deleteClient(clientToDelete.alias.isEmpty() ? clientToDelete.nombre : clientToDelete.alias);
+        onSearchChanged();
     }
 }
 
