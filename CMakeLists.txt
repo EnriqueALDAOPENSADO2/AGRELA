@@ -58,8 +58,11 @@ set(RESOURCES
 )
 
 if(WIN32)
-    set(APP_ICON_RESOURCE "${CMAKE_CURRENT_SOURCE_DIR}/windows/app_icon.rc")
-    list(APPEND SOURCES ${APP_ICON_RESOURCE})
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/windows/app.rc")
+        list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/windows/app.rc")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/windows/app_icon.rc")
+        list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/windows/app_icon.rc")
+    endif()
 endif()
 
 add_executable(agrela_facturacion

@@ -56,6 +56,7 @@ jobs:
     - name: Comprimir Distribución Portable en .ZIP
       run: |
         Compress-Archive -Path AGRELA_Windows_Portable\* -DestinationPath AGRELA_Facturacion_Windows.zip -Force
+        Copy-Item AGRELA_Facturacion_Windows.zip AGRELA_Facturacion_Windows_v1.1.0.zip -Force
 
     - name: Subir Artifact de GitHub Actions
       uses: actions/upload-artifact@v4
@@ -67,7 +68,10 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: github.ref == 'refs/heads/main'
       with:
-        tag_name: v1.0.0
-        files: AGRELA_Facturacion_Windows.zip
+        tag_name: v1.1.0
+        name: "Persianas A Grela Facturación v1.1.0"
+        files: |
+          AGRELA_Facturacion_Windows.zip
+          AGRELA_Facturacion_Windows_v1.1.0.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
