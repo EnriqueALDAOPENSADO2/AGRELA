@@ -35,7 +35,6 @@ private slots:
     void onFormaPagoChanged(const QString& formaPago);
     void onFechaEmisionChanged(const QDate& date);
 
-    void onBrowseOutputDirClicked();
     void onGenerateBothClicked();
     void onExportExcelOnly();
     void onExportPdfOnly();
@@ -75,8 +74,8 @@ private:
     QComboBox* m_cmbFormaPago = nullptr;
     QComboBox* m_cmbTarifa = nullptr;
 
-    // Selector de Directorio de Guardado
-    QLineEdit* m_txtOutputDir = nullptr;
+    // Carpeta recordada
+    QString m_lastOutputDir = "facturas";
 
     // Tabla de Líneas
     QTableWidget* m_tableLines = nullptr;
