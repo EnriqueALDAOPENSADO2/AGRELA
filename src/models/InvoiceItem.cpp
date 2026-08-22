@@ -39,12 +39,13 @@ double InvoiceItem::calcularTotal() const {
     return std::round(rawTotal * 100.0) / 100.0;
 }
 
-InvoiceItem InvoiceItem::fromCatalogItem(const CatalogItem& catItem) {
+InvoiceItem InvoiceItem::fromCatalogItem(const CatalogItem& catItem, const QString& tariff) {
     InvoiceItem item;
     item.code = catItem.code;
     item.desc = catItem.desc;
     item.unidades = 1.0;
-    item.precioUnitario = catItem.p1;
+    item.tarifa = tariff.isEmpty() ? "PVP" : tariff;
+    item.precioUnitario = catItem.getPriceForTariff(item.tarifa);
     item.unidad = catItem.u1.isEmpty() ? "ud." : catItem.u1;
     item.imgPath = catItem.imgPath;
     item.aplicarMinimoCompacto = catItem.sheet.contains("Compactos", Qt::CaseInsensitive);
@@ -57,6 +58,7 @@ InvoiceItem InvoiceItem::fromJson(const QJsonObject& obj) {
     item.desc = obj["desc"].toString();
     item.unidades = obj["unidades"].toDouble(1.0);
     item.precioUnitario = obj["precio_unitario"].toDouble(0.0);
+    item.tarifa = obj["tarifa"].toString("PVP");
     item.anchoPersianaFinal = obj["ancho_persiana_final"].toDouble(0.0);
     item.anchoRolloUsado = obj["ancho_rollo_usado"].toDouble(0.0);
     item.alto = obj["alto"].toDouble(0.0);
@@ -72,6 +74,7 @@ QJsonObject InvoiceItem::toJson() const {
     obj["desc"] = desc;
     obj["unidades"] = unidades;
     obj["precio_unitario"] = precioUnitario;
+    obj["tarifa"] = tarifa;
     obj["ancho_persiana_final"] = anchoPersianaFinal;
     obj["ancho_rollo_usado"] = anchoRolloUsado;
     obj["alto"] = alto;

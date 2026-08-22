@@ -163,48 +163,29 @@ int main(int argc, char* argv[]) {
         std::cout << "  => PASSED!\n" << std::endl;
     }
 
-    // Test 5: Módulo de Compras y Ventas (Registro Automático y Excel Consolidado)
+    // Test 5: Verificación de Tarifa PVP vs Tarifa 1 (T-1)
     {
-        std::cout << "[Test 5: Módulo de Registro de Compras y Ventas]" << std::endl;
+        std::cout << "[Test 5: Verificación de Tarifa PVP vs Tarifa 1 (T-1)]" << std::endl;
 
-        Invoice invVenta;
-        invVenta.cliente.nombre = "CLIENTE TEST VENTAS S.L.";
-        invVenta.cliente.cifNif = "B99887766";
-        invVenta.numeroFactura = "TEST-VEN-001";
-        invVenta.fecha = QDate::currentDate();
-        invVenta.tipoIva = 0.21;
+        CatalogItem catItem;
+        catItem.code = "501000130";
+        catItem.desc = "Recogedor embutir de plástico grande";
+        catItem.pvp = 4.50;
+        catItem.t1 = 3.70;
+        catItem.u1 = "ud.";
 
-        InvoiceItem itemVenta;
-        itemVenta.desc = "Persiana prueba venta";
-        itemVenta.unidades = 1.0;
-        itemVenta.precioUnitario = 150.0;
-        invVenta.items.append(itemVenta);
+        InvoiceItem itemPvp = InvoiceItem::fromCatalogItem(catItem, "PVP");
+        itemPvp.unidades = 10.0;
+        assert(approxEqual(itemPvp.precioUnitario, 4.50));
+        assert(approxEqual(itemPvp.calcularTotal(), 45.00));
 
-        // Registrar venta
-        TransactionService::instance().recordSale(invVenta, "facturas/Factura_TEST-VEN-001.xlsx", "facturas/Factura_TEST-VEN-001.pdf");
-        
-        // Registrar compra
-        PurchaseRecord compra;
-        compra.fecha = QDate::currentDate();
-        compra.proveedor = "PROVEEDOR ALUMINIOS S.A.";
-        compra.cifNif = "A12345678";
-        compra.numFacturaProveedor = "PROV-8812";
-        compra.concepto = "Lamas de aluminio extrusionado 43mm";
-        compra.unidades = 10.0;
-        compra.precioUnitario = 8.50; // 85 € base
-        compra.tipoIva = 0.21;
-        TransactionService::instance().addPurchase(compra);
+        InvoiceItem itemT1 = InvoiceItem::fromCatalogItem(catItem, "T1");
+        itemT1.unidades = 10.0;
+        assert(approxEqual(itemT1.precioUnitario, 3.70));
+        assert(approxEqual(itemT1.calcularTotal(), 37.00));
 
-        std::cout << "  Ventas registradas: " << TransactionService::instance().getSales().size() << std::endl;
-        std::cout << "  Total Venta Facturado: " << TransactionService::instance().getTotalVentasFacturado() << " €" << std::endl;
-        std::cout << "  Compras registradas: " << TransactionService::instance().getPurchases().size() << std::endl;
-        std::cout << "  Total Compras Facturado: " << TransactionService::instance().getTotalComprasFacturado() << " €" << std::endl;
-
-        bool excelOk = TransactionService::instance().exportToExcel("registro_compras_ventas.xlsx");
-        std::cout << "  Excel de Registro Consolidado exportado: " << (excelOk ? "SI" : "NO") << std::endl;
-        assert(excelOk);
-        assert(TransactionService::instance().getSales().size() >= 1);
-        assert(TransactionService::instance().getPurchases().size() >= 1);
+        std::cout << "  Precio PVP (10 uds): " << itemPvp.calcularTotal() << " € (esperado: 45.00 €)" << std::endl;
+        std::cout << "  Precio T-1 (10 uds): " << itemT1.calcularTotal() << " € (esperado: 37.00 €)" << std::endl;
         std::cout << "  => PASSED!\n" << std::endl;
     }
 

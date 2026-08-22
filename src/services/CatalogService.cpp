@@ -50,10 +50,13 @@ bool CatalogService::loadFromExcel(const QString& xlsxPath) {
         it.desc = r[1].trimmed();
         if (it.desc.isEmpty() && it.code.isEmpty()) continue;
 
-        it.p1 = r[2].trimmed().toDouble();
-        it.u1 = (r.size() > 3 && !r[3].trimmed().isEmpty()) ? r[3].trimmed() : "ud.";
-        it.sheet = (r.size() > 4 && !r[4].trimmed().isEmpty()) ? r[4].trimmed() : "General";
-        it.imgPath = (r.size() > 5) ? r[5].trimmed() : "";
+        it.pvp = r[2].trimmed().toDouble();
+        it.p1 = it.pvp;
+        it.t1 = (r.size() > 3 && !r[3].trimmed().isEmpty()) ? r[3].trimmed().toDouble() : it.pvp;
+        it.p_t1 = it.t1;
+        it.u1 = (r.size() > 4 && !r[4].trimmed().isEmpty()) ? r[4].trimmed() : "ud.";
+        it.sheet = (r.size() > 5 && !r[5].trimmed().isEmpty()) ? r[5].trimmed() : "General";
+        it.imgPath = (r.size() > 6) ? r[6].trimmed() : "";
 
         items.append(it);
     }

@@ -9,6 +9,7 @@ struct InvoiceItem {
     QString desc;
     double unidades = 1.0;
     double precioUnitario = 0.0;
+    QString tarifa = "PVP";          // "PVP" o "T1"
     double anchoPersianaFinal = 0.0; // mm (se muestra en la factura al cliente)
     double anchoRolloUsado = 0.0;     // mm (ancho del rollo/bobina para calcular M² y coste)
     double alto = 0.0;               // mm (se muestra en la factura)
@@ -25,7 +26,7 @@ struct InvoiceItem {
     // Total importe de la línea (€)
     double calcularTotal() const;
 
-    static InvoiceItem fromCatalogItem(const CatalogItem& catItem);
+    static InvoiceItem fromCatalogItem(const CatalogItem& catItem, const QString& tariff = "PVP");
     static InvoiceItem fromJson(const QJsonObject& obj);
     QJsonObject toJson() const;
 };

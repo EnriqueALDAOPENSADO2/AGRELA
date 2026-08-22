@@ -38,6 +38,7 @@ struct Invoice {
     QString numeroFactura = "1";
     QDate fecha = QDate::currentDate();
     QString formaPago = "TPV";
+    QString tarifa = "PVP"; // "PVP" o "T1"
 
     // Líneas de artículos
     QVector<InvoiceItem> items;

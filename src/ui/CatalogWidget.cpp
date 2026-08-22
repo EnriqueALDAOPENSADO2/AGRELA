@@ -63,14 +63,15 @@ void CatalogWidget::setupUi() {
 
     // 3. Tabla del catálogo
     m_table = new QTableWidget(this);
-    m_table->setColumnCount(5);
-    m_table->setHorizontalHeaderLabels({"Foto", "Código", "Descripción", "PVP (€)", "Unidad"});
+    m_table->setColumnCount(6);
+    m_table->setHorizontalHeaderLabels({"Foto", "Código", "Descripción", "PVP (€)", "T-1 (€)", "Unidad"});
     
     m_table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
     m_table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
     m_table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     m_table->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    m_table->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeToContents);
     m_table->setColumnWidth(0, 52);
     
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -125,7 +126,7 @@ void CatalogWidget::onRefreshPreciosClicked() {
     refreshCategoryCombo();
     onSearchChanged();
     QMessageBox::information(this, "Tarifas Actualizadas", 
-                             "Se han recargado todos los artículos y precios PVP directamente desde los archivos Excel de la carpeta PRECIOS.");
+                             "Se han recargado todos los artículos y precios (PVP y T-1) directamente desde los archivos Excel de la carpeta PRECIOS.");
 }
 
 void CatalogWidget::onSearchChanged() {
@@ -167,15 +168,25 @@ void CatalogWidget::populateTable(const QVector<CatalogItem>& items) {
         m_table->setItem(r, 2, descItem);
 
         // Precio PVP
-        auto* priceItem = new QTableWidgetItem(it.p1 > 0 ? QString("%1 €").arg(it.p1, 0, 'f', 2) : "-");
-        priceItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        priceItem->setFont(QFont("Arial", 9, QFont::Bold));
-        m_table->setItem(r, 3, priceItem);
+        double pvpVal = (it.pvp > 0.0) ? it.pvp : it.p1;
+        auto* pvpItem = new QTableWidgetItem(pvpVal > 0 ? QString("%1 €").arg(pvpVal, 0, 'f', 2) : "-");
+        pvpItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        pvpItem->setFont(QFont("Arial", 9, QFont::Bold));
+        pvpItem->setForeground(QColor("#1F4E78"));
+        m_table->setItem(r, 3, pvpItem);
+
+        // Precio T-1
+        double t1Val = (it.t1 > 0.0) ? it.t1 : (it.p_t1 > 0.0 ? it.p_t1 : pvpVal);
+        auto* t1Item = new QTableWidgetItem(t1Val > 0 ? QString("%1 €").arg(t1Val, 0, 'f', 2) : "-");
+        t1Item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        t1Item->setFont(QFont("Arial", 9, QFont::Bold));
+        t1Item->setForeground(QColor("#166534"));
+        m_table->setItem(r, 4, t1Item);
 
         // Unidad
         auto* unitItem = new QTableWidgetItem(it.u1.isEmpty() ? "ud." : it.u1);
         unitItem->setTextAlignment(Qt::AlignCenter);
-        m_table->setItem(r, 4, unitItem);
+        m_table->setItem(r, 5, unitItem);
 
         m_table->setRowHeight(r, 46);
     }

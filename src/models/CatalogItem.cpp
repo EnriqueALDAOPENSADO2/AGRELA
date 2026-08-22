@@ -6,7 +6,10 @@ CatalogItem CatalogItem::fromJson(const QJsonObject& obj) {
     item.category = obj["category"].toString();
     item.code = obj["code"].toString();
     item.desc = obj["desc"].toString();
-    item.p1 = obj["p1"].toDouble(0.0);
+    item.pvp = obj["pvp"].toDouble(obj["p1"].toDouble(0.0));
+    item.t1 = obj["t1"].toDouble(obj["p_t1"].toDouble(item.pvp));
+    item.p1 = item.pvp;
+    item.p_t1 = item.t1;
     item.u1 = obj["u1"].toString();
     item.p2 = obj["p2"].toDouble(0.0);
     item.u2 = obj["u2"].toString();
@@ -20,7 +23,10 @@ QJsonObject CatalogItem::toJson() const {
     obj["category"] = category;
     obj["code"] = code;
     obj["desc"] = desc;
-    obj["p1"] = p1;
+    obj["pvp"] = pvp > 0.0 ? pvp : p1;
+    obj["t1"] = t1 > 0.0 ? t1 : p_t1;
+    obj["p1"] = p1 > 0.0 ? p1 : pvp;
+    obj["p_t1"] = p_t1 > 0.0 ? p_t1 : t1;
     obj["u1"] = u1;
     obj["p2"] = p2;
     obj["u2"] = u2;

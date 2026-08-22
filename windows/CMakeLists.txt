@@ -37,25 +37,18 @@ set(SOURCES
     src/models/InvoiceItem.cpp
     src/models/Invoice.h
     src/models/Invoice.cpp
-    src/models/TransactionItem.h
     src/services/CatalogService.h
     src/services/CatalogService.cpp
     src/services/ClientService.h
     src/services/ClientService.cpp
     src/services/InvoiceGeneratorService.h
     src/services/InvoiceGeneratorService.cpp
-    src/services/TransactionService.h
-    src/services/TransactionService.cpp
     src/ui/LineItemDialog.h
     src/ui/LineItemDialog.cpp
     src/ui/ClientSelectorDialog.h
     src/ui/ClientSelectorDialog.cpp
     src/ui/CatalogWidget.h
     src/ui/CatalogWidget.cpp
-    src/ui/SalesWidget.h
-    src/ui/SalesWidget.cpp
-    src/ui/PurchasesWidget.h
-    src/ui/PurchasesWidget.cpp
     src/ui/MainWindow.h
     src/ui/MainWindow.cpp
 )
@@ -90,12 +83,9 @@ add_executable(test_render_ui
     src/services/CatalogService.cpp
     src/services/ClientService.cpp
     src/services/InvoiceGeneratorService.cpp
-    src/services/TransactionService.cpp
     src/ui/LineItemDialog.cpp
     src/ui/ClientSelectorDialog.cpp
     src/ui/CatalogWidget.cpp
-    src/ui/SalesWidget.cpp
-    src/ui/PurchasesWidget.cpp
     src/ui/MainWindow.cpp
 )
 
@@ -115,7 +105,6 @@ add_executable(test_runner
     src/services/CatalogService.cpp
     src/services/ClientService.cpp
     src/services/InvoiceGeneratorService.cpp
-    src/services/TransactionService.cpp
 )
 
 target_link_libraries(test_runner PRIVATE
