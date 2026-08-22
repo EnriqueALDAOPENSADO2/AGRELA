@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QRadioButton>
 #include <QButtonGroup>
+#include <QCheckBox>
 #include <QLabel>
 #include <QPushButton>
 #include "../models/InvoiceItem.h"
@@ -22,6 +23,7 @@ private slots:
     void updateCalculations();
     void onUnidadChanged(int index);
     void onTariffToggled();
+    void onColoresEspecialesToggled(bool checked);
 
 private:
     void setupUi();
@@ -35,6 +37,7 @@ private:
     QRadioButton* m_radPvp = nullptr;
     QRadioButton* m_radT1 = nullptr;
     QButtonGroup* m_tariffGroup = nullptr;
+    QCheckBox* m_chkColoresEspeciales = nullptr;
 
     QComboBox* m_cmbUnidad = nullptr;
     QDoubleSpinBox* m_spnUnidades = nullptr;

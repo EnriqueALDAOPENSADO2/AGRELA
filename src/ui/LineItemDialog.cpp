@@ -132,6 +132,22 @@ void LineItemDialog::setupUi() {
     tariffLayout->addStretch();
     formLayout->addRow("Tarifa de Precio:", tariffLayout);
 
+    // Opción Colores Especiales (+10%) para FLX-4155 y tejidos
+    m_chkColoresEspeciales = new QCheckBox("🎨 Colores Especiales (+10% en el precio)", this);
+    m_chkColoresEspeciales->setCursor(Qt::PointingHandCursor);
+    m_chkColoresEspeciales->setStyleSheet(
+        "QCheckBox { font-size: 12px; font-weight: bold; color: #C2410C; background-color: #FFF7ED; border: 1px solid #FDBA74; border-radius: 5px; padding: 4px 8px; }"
+        "QCheckBox:hover { background-color: #FFEDD5; }"
+    );
+
+    bool isFlx4155 = m_item.code.contains("4155", Qt::CaseInsensitive) || m_item.desc.contains("4155", Qt::CaseInsensitive);
+    m_chkColoresEspeciales->setChecked(m_item.desc.contains("Colores especiales", Qt::CaseInsensitive));
+    connect(m_chkColoresEspeciales, &QCheckBox::toggled, this, &LineItemDialog::onColoresEspecialesToggled);
+
+    if (isFlx4155 || m_item.desc.contains("Colores especiales", Qt::CaseInsensitive) || m_catItem.sheet.contains("Flexol", Qt::CaseInsensitive)) {
+        formLayout->addRow("Color / Acabado:", m_chkColoresEspeciales);
+    }
+
     // Selector de Tipo de Tarificación / Unidad
     m_cmbUnidad = new QComboBox(this);
     m_cmbUnidad->addItem("Por Superficie (m²)", "m²");
@@ -240,21 +256,42 @@ void LineItemDialog::setupUi() {
     connect(m_spnAlto, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &LineItemDialog::updateCalculations);
 }
 
-void LineItemDialog::onTariffToggled() {
-    if (m_radT1 && m_radT1->isChecked()) {
-        m_item.tarifa = "T1";
-        if (m_catItem.t1 > 0.0) {
-            m_spnPrecio->setValue(m_catItem.t1);
-        } else if (m_catItem.p_t1 > 0.0) {
-            m_spnPrecio->setValue(m_catItem.p_t1);
+void LineItemDialog::onColoresEspecialesToggled(bool checked) {
+    double basePvp = (m_catItem.pvp > 0.0) ? m_catItem.pvp : 59.0;
+    double baseT1 = (m_catItem.t1 > 0.0) ? m_catItem.t1 : (basePvp * 0.75);
+
+    double activeBase = (m_radT1 && m_radT1->isChecked()) ? baseT1 : basePvp;
+    double finalPrice = checked ? (std::round(activeBase * 1.10 * 100.0) / 100.0) : activeBase;
+    m_spnPrecio->setValue(finalPrice);
+
+    QString curDesc = m_txtDesc->text().trimmed();
+    if (checked) {
+        if (!curDesc.contains("Colores especiales", Qt::CaseInsensitive)) {
+            m_txtDesc->setText(curDesc + " (Colores especiales +10%)");
         }
     } else {
+        curDesc.replace(" (Colores especiales +10%)", "", Qt::CaseInsensitive);
+        curDesc.replace("(Colores especiales +10%)", "", Qt::CaseInsensitive);
+        curDesc.replace(" Colores especiales +10%", "", Qt::CaseInsensitive);
+        m_txtDesc->setText(curDesc.trimmed());
+    }
+
+    updateCalculations();
+}
+
+void LineItemDialog::onTariffToggled() {
+    double basePvp = (m_catItem.pvp > 0.0) ? m_catItem.pvp : 59.0;
+    double baseT1 = (m_catItem.t1 > 0.0) ? m_catItem.t1 : (basePvp * 0.75);
+    bool isSpecial = (m_chkColoresEspeciales && m_chkColoresEspeciales->isChecked());
+
+    if (m_radT1 && m_radT1->isChecked()) {
+        m_item.tarifa = "T1";
+        double p = isSpecial ? (std::round(baseT1 * 1.10 * 100.0) / 100.0) : baseT1;
+        m_spnPrecio->setValue(p);
+    } else {
         m_item.tarifa = "PVP";
-        if (m_catItem.pvp > 0.0) {
-            m_spnPrecio->setValue(m_catItem.pvp);
-        } else if (m_catItem.p1 > 0.0) {
-            m_spnPrecio->setValue(m_catItem.p1);
-        }
+        double p = isSpecial ? (std::round(basePvp * 1.10 * 100.0) / 100.0) : basePvp;
+        m_spnPrecio->setValue(p);
     }
     updateCalculations();
 }
