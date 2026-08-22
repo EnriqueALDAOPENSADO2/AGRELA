@@ -1,4 +1,5 @@
 #include "CatalogWidget.h"
+#include "AddCatalogProductDialog.h"
 #include "../services/CatalogService.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -18,7 +19,7 @@ void CatalogWidget::setupUi() {
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(8);
 
-    // 1. Selector de Categoría / Sección con botón de actualización en caliente
+    // 1. Selector de Categoría / Sección con botón de creación y actualización
     auto* catLayout = new QHBoxLayout();
     auto* lblCat = new QLabel("Categoría:", this);
     lblCat->setStyleSheet("font-weight: 600; color: #1E293B; font-size: 12px;");
@@ -28,6 +29,15 @@ void CatalogWidget::setupUi() {
         "QComboBox { background-color: #FFFFFF; color: #1E293B; border: 1.5px solid #CBD5E1; border-radius: 6px; padding: 5px 8px; font-size: 13px; font-weight: 500; }"
         "QComboBox:focus { border: 1.5px solid #2B78C5; }"
         "QComboBox QAbstractItemView { background-color: #FFFFFF; color: #1E293B; selection-background-color: #D9E1F2; selection-color: #1F4E78; border: 1px solid #CBD5E1; }"
+    );
+
+    m_btnNewProduct = new QPushButton("➕ Nuevo Producto...", this);
+    m_btnNewProduct->setCursor(Qt::PointingHandCursor);
+    m_btnNewProduct->setToolTip("Añadir un nuevo producto personalizado al catálogo con sus precios PVP y T-1");
+    m_btnNewProduct->setStyleSheet(
+        "QPushButton { background-color: #EBF5FB; color: #1F4E78; border: 1.5px solid #2B78C5; border-radius: 6px; padding: 5px 10px; font-weight: bold; font-size: 11px; }"
+        "QPushButton:hover { background-color: #D9E1F2; }"
+        "QPushButton:pressed { background-color: #CBD5E1; }"
     );
 
     m_btnRefresh = new QPushButton("🔄 Actualizar", this);
@@ -41,6 +51,7 @@ void CatalogWidget::setupUi() {
 
     catLayout->addWidget(lblCat);
     catLayout->addWidget(m_categoryCombo, 1);
+    catLayout->addWidget(m_btnNewProduct);
     catLayout->addWidget(m_btnRefresh);
     layout->addLayout(catLayout);
 
@@ -105,6 +116,27 @@ void CatalogWidget::setupUi() {
     connect(m_table, &QTableWidget::cellDoubleClicked, this, &CatalogWidget::onRowDoubleClicked);
     connect(m_btnAdd, &QPushButton::clicked, this, &CatalogWidget::onAddClicked);
     connect(m_btnRefresh, &QPushButton::clicked, this, &CatalogWidget::onRefreshPreciosClicked);
+    connect(m_btnNewProduct, &QPushButton::clicked, this, &CatalogWidget::onNewProductClicked);
+}
+
+void CatalogWidget::onNewProductClicked() {
+    AddCatalogProductDialog dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        CatalogItem prod = dlg.getProduct();
+        CatalogService::instance().addCustomItem(prod);
+        refreshCategoryCombo();
+        
+        int idx = m_categoryCombo->findText(prod.sheet);
+        if (idx >= 0) {
+            m_categoryCombo->setCurrentIndex(idx);
+        }
+        
+        m_searchEdit->setText(prod.desc);
+        onSearchChanged();
+
+        QMessageBox::information(this, "Producto Guardado",
+            QString("El producto <b>%1</b> (Código: %2) se ha guardado en el catálogo con éxito en la sección <b>%3</b>.").arg(prod.desc, prod.code, prod.sheet));
+    }
 }
 
 void CatalogWidget::refreshCategoryCombo() {

@@ -12,6 +12,9 @@ public:
     bool loadFromExcel(const QString& xlsxPath = "precios_catalogo.xlsx");
     bool syncWithPreciosFolder(const QString& folderPath = "PRECIOS", const QString& jsonPath = "catalog.json", bool force = false);
     
+    bool addCustomItem(const CatalogItem& item, const QString& jsonPath = "catalog.json", const QString& xlsxPath = "precios_catalogo.xlsx");
+    bool saveCatalog(const QString& jsonPath = "catalog.json", const QString& xlsxPath = "precios_catalogo.xlsx");
+
     const QVector<CatalogItem>& getAllItems() const;
     QStringList getSheets() const;
     QStringList getCategoriesForSheet(const QString& sheet) const;

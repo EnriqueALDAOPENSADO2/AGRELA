@@ -176,6 +176,45 @@ bool CatalogService::loadCatalog(const QString& jsonPath) {
     return true;
 }
 
+bool CatalogService::addCustomItem(const CatalogItem& item, const QString& jsonPath, const QString& xlsxPath) {
+    bool replaced = false;
+    for (int i = 0; i < m_items.size(); ++i) {
+        if (m_items[i].code.compare(item.code, Qt::CaseInsensitive) == 0) {
+            m_items[i] = item;
+            replaced = true;
+            break;
+        }
+    }
+    if (!replaced) {
+        m_items.append(item);
+    }
+
+    return saveCatalog(jsonPath, xlsxPath);
+}
+
+bool CatalogService::saveCatalog(const QString& jsonPath, const QString& xlsxPath) {
+    QJsonArray arr;
+    for (const auto& it : m_items) {
+        arr.append(it.toJson());
+    }
+    QJsonDocument doc(arr);
+    QFile fJson(jsonPath);
+    if (fJson.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        fJson.write(doc.toJson());
+        fJson.close();
+    }
+
+    if (QDir("windows").exists()) {
+        QFile fWinJson("windows/catalog.json");
+        if (fWinJson.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            fWinJson.write(doc.toJson());
+            fWinJson.close();
+        }
+    }
+
+    return true;
+}
+
 const QVector<CatalogItem>& CatalogService::getAllItems() const {
     return m_items;
 }
