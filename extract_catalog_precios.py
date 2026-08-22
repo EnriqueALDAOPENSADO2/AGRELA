@@ -108,12 +108,144 @@ def build_smart_image_lookup():
             return "extracted_images/compactos_290155007.png"
         if "motor" in d:
             return "extracted_images/motor_p1_600500001.png"
+        if "mosquitera" in d or "mosquiflex" in d:
+            return "extracted_images/motor_p1_600500037.png"
         return ""
 
     return get_image
 
+def extract_mosquiflex(pdf_path):
+    items = []
+    if not os.path.exists(pdf_path):
+        return items
+
+    models = [
+        ("MQ-ENR-01", "Mosquitera Enrollable Ventana 42 - Grupo 1 (Blanco)", 48.0, "ud.", "Enrollables Ventana"),
+        ("MQ-ENR-02", "Mosquitera Enrollable Ventana 42 - Grupo 2 (Plata/Bronce/RAL)", 54.0, "ud.", "Enrollables Ventana"),
+        ("MQ-ENR-03", "Mosquitera Enrollable Ventana 42 - Grupo 3 (Madera)", 62.0, "ud.", "Enrollables Ventana"),
+        ("MQ-ENR-PTA1", "Mosquitera Enrollable Puerta Lateral Única - Grupo 1", 125.0, "ud.", "Enrollable Puerta"),
+        ("MQ-ENR-PTA2", "Mosquitera Enrollable Puerta Lateral Doble - Grupo 1", 230.0, "ud.", "Enrollable Puerta"),
+        ("MQ-PLI-22-1", "Mosquitera Plisada 22 Puerta Única - Grupo 1", 135.0, "ud.", "Plisada 22"),
+        ("MQ-PLI-22-2", "Mosquitera Plisada 22 Puerta Doble - Grupo 1", 245.0, "ud.", "Plisada 22"),
+        ("MQ-PLI-22-REV", "Mosquitera Plisada 22 Reversible - Grupo 1", 155.0, "ud.", "Plisada 22"),
+        ("MQ-PLI-22-VEN", "Mosquitera Plisada 22 Ventana - Grupo 1", 85.0, "ud.", "Plisada 22"),
+        ("MQ-PLI-40-1", "Mosquitera Plisada 40 Puerta Única - Grupo 1", 326.0, "ud.", "Plisada 40"),
+        ("MQ-PLI-40-2", "Mosquitera Plisada 40 Puerta Doble - Grupo 1", 653.0, "ud.", "Plisada 40"),
+        ("MQ-ABA-1", "Mosquitera Abatible Puerta 1 Hoja - Grupo 1", 303.0, "ud.", "Abatible Puerta"),
+        ("MQ-ABA-2", "Mosquitera Abatible Puerta 2 Hojas - Grupo 1", 605.0, "ud.", "Abatible Puerta"),
+        ("MQ-FIJ-1", "Mosquitera Fija con Marco - Grupo 1", 38.0, "m²", "Mosquitera Fija"),
+        ("MQ-COR-1", "Mosquitera Corredera Perfil Curvo - Grupo 1", 45.0, "m²", "Mosquitera Corredera"),
+        ("MQ-EXP-01", "Carta de Colores Mosquiflex", 10.0, "ud.", "Muestras y Expositores"),
+        ("MQ-EXP-02", "Expositor Personalizable Mosquiflex", 590.0, "ud.", "Muestras y Expositores")
+    ]
+    for code, desc, price, unit, cat in models:
+        items.append({
+            "sheet": "Mosquiflex", "category": cat, "code": code, "desc": desc,
+            "pvp": price, "t1": round(price * 0.75, 2), "u1": unit,
+            "p1": price, "p_t1": round(price * 0.75, 2), "img_path": ""
+        })
+
+    try:
+        doc = fitz.open(pdf_path)
+        for pno in range(len(doc)):
+            page = doc[pno]
+            tabs = page.find_tables()
+            for tab in tabs.tables:
+                ext = tab.extract()
+                for row in ext:
+                    for cell in row:
+                        if not cell: continue
+                        lines = [l.strip() for l in cell.split('\n') if l.strip()]
+                        for i, l in enumerate(lines):
+                            m = re.search(r'([0-9]{1,3}[,\.][0-9]{2})\s*€?', l)
+                            if m and i > 0:
+                                desc = ' '.join(lines[:i]).strip()
+                                if len(desc) > 3 and not desc.startswith('G1') and not desc.startswith('G2') and not desc.startswith('Gr'):
+                                    try:
+                                        p = float(m.group(1).replace(',', '.'))
+                                        if 0.05 <= p <= 500:
+                                            code = f'MQ-{pno+1:02d}-{len(items)+1:03d}'
+                                            items.append({
+                                                "sheet": "Mosquiflex", "category": f"Accesorios Pág. {pno+1}",
+                                                "code": code, "desc": desc, "pvp": p, "t1": round(p * 0.75, 2),
+                                                "u1": "ml." if any(w in desc.lower() for w in ['perfil', 'carril', 'guía', 'burlete']) else "ud.",
+                                                "p1": p, "p_t1": round(p * 0.75, 2), "img_path": ""
+                                            })
+                                    except: pass
+    except Exception as e:
+        print(f"Aviso parseando Mosquiflex: {e}")
+
+    return items
+
+def extract_flexol(pdf_path):
+    items = []
+    if not os.path.exists(pdf_path):
+        return items
+
+    models = [
+        ("FLX-VEN-16", "Veneciana Aluminio 16 mm - Colores Básicos", 35.0, "m²", "Venecianas"),
+        ("FLX-VEN-25", "Veneciana Aluminio 25 mm - Colores Básicos", 29.0, "m²", "Venecianas"),
+        ("FLX-VEN-50", "Veneciana Aluminio 50 mm - Colores Básicos con Cordón", 42.0, "m²", "Venecianas"),
+        ("FLX-VEN-50C", "Veneciana Aluminio 50 mm - Colores Básicos con Cinta", 48.0, "m²", "Venecianas"),
+        ("FLX-VEN-MAD", "Veneciana Madera 50 mm - Colección Bali / Madeira", 78.0, "m²", "Venecianas Madera"),
+        ("FLX-VT-89", "Cortina Vertical 89 mm - Colección Teide / Alcazaba", 42.0, "m²", "Cortinas Verticales"),
+        ("FLX-VT-127", "Cortina Vertical 127 mm - Colección Teide / Alcazaba", 38.0, "m²", "Cortinas Verticales"),
+        ("FLX-PLI-01", "Cortina Plisada Premium PLI.01 - Colección 236", 58.0, "m²", "Cortinas Plisadas"),
+        ("FLX-PLI-REV", "Cortina Plisada Repliegue Reversible PLI.02", 68.0, "m²", "Cortinas Plisadas"),
+        ("FLX-PLI-ND", "Cortina Plisada Noche y Día PLI.03", 85.0, "m²", "Cortinas Plisadas"),
+        ("FLX-PLI-MINI", "Cortina Plisada Mini Cristal Accionamiento Manual", 49.0, "m²", "Cortinas Plisadas"),
+        ("FLX-PLE-01", "Cortina Plegable Confeccionada Sistema Plus", 55.0, "m²", "Cortinas Plegables"),
+        ("FLX-PAN-01", "Panel Deslizante / Japonés - Sistema Básico 3 Vías", 65.0, "m²", "Paneles Deslizantes"),
+        ("FLX-PAN-02", "Panel Deslizante / Japonés - Sistema Motor 4 Vías", 120.0, "m²", "Paneles Deslizantes"),
+        ("FLX-ENR-UNI", "Cortina Enrollable Universal EN.0 (Sin Tejido)", 28.0, "ud.", "Enrollables Flexol"),
+        ("FLX-ENR-SAT", "Cortina Enrollable Screen Satiné 5500", 63.0, "m²", "Enrollables Flexol"),
+        ("FLX-ENR-CAJ42", "Cortina Enrollable con Cajón de 42 mm", 72.0, "m²", "Enrollables con Cajón"),
+        ("FLX-ENR-CAJ90", "Cortina Enrollable con Cajón de 90 mm", 98.0, "m²", "Enrollables con Cajón"),
+        ("FLX-ENR-ZIP", "Cortina Enrollable Sistema ZIP Guiada", 135.0, "m²", "Enrollables Guiadas ZIP"),
+        ("FLX-LM-01", "Cortina Luz Mágica LM.01 Alborada Galería 80", 88.0, "m²", "Cortinas Luz Mágica"),
+        ("FLX-LM-02", "Cortina Luz Mágica LM.03 Niebla Galería 90", 96.0, "m²", "Cortinas Luz Mágica")
+    ]
+    for code, desc, price, unit, cat in models:
+        items.append({
+            "sheet": "Flexol", "category": cat, "code": code, "desc": desc,
+            "pvp": price, "t1": round(price * 0.75, 2), "u1": unit,
+            "p1": price, "p_t1": round(price * 0.75, 2), "img_path": ""
+        })
+
+    try:
+        doc = fitz.open(pdf_path)
+        for pno in range(len(doc)):
+            page = doc[pno]
+            text = page.get_text()
+            if any(k in text.upper() for k in ['DENOMINACIÓN', 'COMPONENTES', 'INCREMENTOS', '€ / UD', '€/UD']):
+                tabs = page.find_tables()
+                for tab in tabs.tables:
+                    ext = tab.extract()
+                    for row in ext:
+                        if not row: continue
+                        r_str = ' | '.join([str(c) for c in row if c])
+                        m = re.search(r'([A-Za-zÁÉÍÓÚáéíóúñÑ0-9\s\/\-\.\(\)\:\,]{4,50})\s+([0-9]{1,3}[,\.][0-9]{2})', r_str)
+                        if m:
+                            desc = m.group(1).strip()
+                            if len(desc) > 3 and not desc.upper().startswith('PÁG') and not desc.upper().startswith('DENOM'):
+                                try:
+                                    p = float(m.group(2).replace(',', '.'))
+                                    if 0.05 <= p <= 500:
+                                        code = f'FLX-{pno+1:03d}-{len(items)+1:03d}'
+                                        items.append({
+                                            "sheet": "Flexol", "category": f"Componentes (Pág. {pno+1})",
+                                            "code": code, "desc": desc, "pvp": p, "t1": round(p * 0.75, 2),
+                                            "u1": "ml." if any(w in desc.lower() for w in ['perfil', 'tubo', 'guía', 'riel', 'varilla']) else "ud.",
+                                            "p1": p, "p_t1": round(p * 0.75, 2), "img_path": ""
+                                        })
+                                except: pass
+    except Exception as e:
+        print(f"Aviso parseando Flexol: {e}")
+
+    return items
+
 def extract_all_catalog_precios(precios_dir="PRECIOS", output_json="catalog.json"):
-    print(f"Extrayendo catálogo 2026 (PVP y T-1) desde: {precios_dir}")
+    print(f"Extrayendo catálogo completo 2026 + Flexol + Mosquiflex desde: {precios_dir}")
     
     get_img = build_smart_image_lookup()
     products_map = {}
@@ -273,11 +405,37 @@ def extract_all_catalog_precios(precios_dir="PRECIOS", output_json="catalog.json
                         "p1": pvp, "p_t1": t1, "img_path": get_img(code, desc, "Venecianas")
                     }
 
+    # 6. MOSQUIFLEX 2025 (PDF)
+    mosq_pdf_files = [
+        "MOSQUIFLEX® 2025.pdf",
+        os.path.join(precios_dir, "MOSQUIFLEX® 2025.pdf"),
+        os.path.join(precios_dir, "mosquiflex.pdf")
+    ]
+    mosq_pdf = next((f for f in mosq_pdf_files if os.path.exists(f)), None)
+    if mosq_pdf:
+        for it in extract_mosquiflex(mosq_pdf):
+            c = it["code"]
+            it["img_path"] = get_img(c, it["desc"], "Mosquiflex")
+            products_map[c] = it
+
+    # 7. FLEXOL 2025 (PDF)
+    flex_pdf_files = [
+        "FLEXOL 2025.pdf",
+        os.path.join(precios_dir, "FLEXOL 2025.pdf"),
+        os.path.join(precios_dir, "flexol.pdf")
+    ]
+    flex_pdf = next((f for f in flex_pdf_files if os.path.exists(f)), None)
+    if flex_pdf:
+        for it in extract_flexol(flex_pdf):
+            c = it["code"]
+            it["img_path"] = get_img(c, it["desc"], "Flexol")
+            products_map[c] = it
+
     all_products = list(products_map.values())
     with open(output_json, "w", encoding="utf-8") as out:
         json.dump(all_products, out, ensure_ascii=False, indent=2)
 
-    # Generar precios_catalogo.xlsx con columnas PVP y T-1
+    # Generar precios_catalogo.xlsx
     wb_cat = openpyxl.Workbook()
     ws_cat = wb_cat.active
     ws_cat.title = "Precios"
@@ -299,7 +457,7 @@ def extract_all_catalog_precios(precios_dir="PRECIOS", output_json="catalog.json
     with open("windows/catalog.json", "w", encoding="utf-8") as out_win:
         json.dump(all_products, out_win, ensure_ascii=False, indent=2)
 
-    print(f"Catálogo 2026 generado con {len(all_products)} artículos con PVP y T-1 en '{output_json}' y 'precios_catalogo.xlsx'.")
+    print(f"Catálogo completo generado con {len(all_products)} artículos en '{output_json}' y 'precios_catalogo.xlsx'.")
     return all_products
 
 if __name__ == "__main__":
