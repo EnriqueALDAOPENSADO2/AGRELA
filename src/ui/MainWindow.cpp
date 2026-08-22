@@ -432,6 +432,31 @@ void MainWindow::setupActionsBar() {
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(8);
 
+    // Selector de Directorio de Guardado
+    auto* dirLayout = new QHBoxLayout();
+    auto* lblDir = new QLabel("📁 Guardar en:", this);
+    lblDir->setStyleSheet("font-size: 12px; font-weight: bold; color: #1F4E78;");
+
+    m_txtOutputDir = new QLineEdit(this);
+    m_txtOutputDir->setText("facturas");
+    m_txtOutputDir->setPlaceholderText("Carpeta de destino (ej: facturas, C:/Facturas...)");
+    m_txtOutputDir->setStyleSheet(
+        "QLineEdit { background-color: #FFFFFF; color: #1E293B; border: 1.5px solid #CBD5E1; border-radius: 5px; padding: 5px 8px; font-size: 12px; font-weight: 500; }"
+        "QLineEdit:focus { border: 1.5px solid #2B78C5; }"
+    );
+
+    auto* btnBrowseDir = new QPushButton("Cambiar Carpeta...", this);
+    btnBrowseDir->setCursor(Qt::PointingHandCursor);
+    btnBrowseDir->setStyleSheet(
+        "QPushButton { background-color: #EBF5FB; color: #1F4E78; border: 1.5px solid #2B78C5; border-radius: 5px; padding: 5px 10px; font-weight: bold; font-size: 11px; }"
+        "QPushButton:hover { background-color: #D9E1F2; }"
+    );
+    connect(btnBrowseDir, &QPushButton::clicked, this, &MainWindow::onBrowseOutputDirClicked);
+
+    dirLayout->addWidget(lblDir);
+    dirLayout->addWidget(m_txtOutputDir, 1);
+    dirLayout->addWidget(btnBrowseDir);
+
     auto* btnGenerateBoth = new QPushButton("⚡ GENERAR FACTURA (EXCEL + PDF SIMULTÁNEO)", this);
     btnGenerateBoth->setCursor(Qt::PointingHandCursor);
     btnGenerateBoth->setStyleSheet(
@@ -464,6 +489,7 @@ void MainWindow::setupActionsBar() {
     subBtnLayout->addWidget(btnSave);
     subBtnLayout->addWidget(btnLoad);
 
+    layout->addLayout(dirLayout);
     layout->addWidget(btnGenerateBoth);
     layout->addLayout(subBtnLayout);
 
@@ -710,6 +736,15 @@ void MainWindow::onNewInvoice() {
     }
 }
 
+void MainWindow::onBrowseOutputDirClicked() {
+    QString current = m_txtOutputDir ? m_txtOutputDir->text().trimmed() : "facturas";
+    if (current.isEmpty()) current = "facturas";
+    QString dir = QFileDialog::getExistingDirectory(this, "Seleccionar Carpeta para Guardar Facturas", current);
+    if (!dir.isEmpty()) {
+        m_txtOutputDir->setText(dir);
+    }
+}
+
 void MainWindow::onGenerateBothClicked() {
     Invoice inv = getInvoiceFromUi();
     if (inv.items.isEmpty()) {
@@ -717,7 +752,11 @@ void MainWindow::onGenerateBothClicked() {
         return;
     }
 
-    auto paths = InvoiceGeneratorService::instance().generateBoth(inv, "facturas");
+    QString outDir = m_txtOutputDir ? m_txtOutputDir->text().trimmed() : "facturas";
+    if (outDir.isEmpty()) outDir = "facturas";
+    QDir().mkpath(outDir);
+
+    auto paths = InvoiceGeneratorService::instance().generateBoth(inv, outDir);
     if (!paths.first.isEmpty() && !paths.second.isEmpty()) {
         QMessageBox msgBox(this);
         msgBox.setWindowTitle("Factura Generada con Éxito");
@@ -729,11 +768,11 @@ void MainWindow::onGenerateBothClicked() {
             "QPushButton:hover { background-color: #E2E8F0; }"
         );
         msgBox.setText(QString("<h3>¡Factura generada con éxito!</h3>"
-                               "<p>Se han creado los siguientes archivos:</p>"
+                               "<p>Se han creado los siguientes archivos en <b>%1</b>:</p>"
                                "<ul>"
-                               "<li><b>Excel:</b> %1</li>"
-                               "<li><b>PDF:</b> %2</li>"
-                               "</ul>").arg(paths.first, paths.second));
+                               "<li><b>Excel:</b> %2</li>"
+                               "<li><b>PDF:</b> %3</li>"
+                               "</ul>").arg(outDir, paths.first, paths.second));
 
         auto* btnOpenPdf = msgBox.addButton("📑 Abrir PDF", QMessageBox::ActionRole);
         auto* btnOpenExcel = msgBox.addButton("📊 Abrir Excel", QMessageBox::ActionRole);
@@ -760,7 +799,12 @@ void MainWindow::onExportExcelOnly() {
         QMessageBox::warning(this, "Aviso", "La factura no contiene ningún artículo.");
         return;
     }
-    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura Excel", QString("facturas/Factura_%1.xlsx").arg(inv.numeroFactura), "Archivos Excel (*.xlsx)");
+    QString outDir = m_txtOutputDir ? m_txtOutputDir->text().trimmed() : "facturas";
+    if (outDir.isEmpty()) outDir = "facturas";
+    QDir().mkpath(outDir);
+
+    QString defaultFile = QString("%1/Factura_%2.xlsx").arg(outDir, inv.numeroFactura);
+    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura Excel", defaultFile, "Archivos Excel (*.xlsx)");
     if (!path.isEmpty()) {
         if (InvoiceGeneratorService::instance().generateExcel(inv, path)) {
             QMessageBox::information(this, "Éxito", "Factura Excel guardada correctamente.");
@@ -776,7 +820,12 @@ void MainWindow::onExportPdfOnly() {
         QMessageBox::warning(this, "Aviso", "La factura no contiene ningún artículo.");
         return;
     }
-    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura PDF", QString("facturas/Factura_%1.pdf").arg(inv.numeroFactura), "Archivos PDF (*.pdf)");
+    QString outDir = m_txtOutputDir ? m_txtOutputDir->text().trimmed() : "facturas";
+    if (outDir.isEmpty()) outDir = "facturas";
+    QDir().mkpath(outDir);
+
+    QString defaultFile = QString("%1/Factura_%2.pdf").arg(outDir, inv.numeroFactura);
+    QString path = QFileDialog::getSaveFileName(this, "Guardar Factura PDF", defaultFile, "Archivos PDF (*.pdf)");
     if (!path.isEmpty()) {
         if (InvoiceGeneratorService::instance().generatePdf(inv, path)) {
             QMessageBox::information(this, "Éxito", "Factura PDF guardada correctamente.");
@@ -788,7 +837,12 @@ void MainWindow::onExportPdfOnly() {
 
 void MainWindow::onSaveInvoiceJson() {
     Invoice inv = getInvoiceFromUi();
-    QString path = QFileDialog::getSaveFileName(this, "Guardar Proyecto de Factura", QString("facturas/Factura_%1.agrfac").arg(inv.numeroFactura), "Factura AGRELA (*.agrfac *.json)");
+    QString outDir = m_txtOutputDir ? m_txtOutputDir->text().trimmed() : "facturas";
+    if (outDir.isEmpty()) outDir = "facturas";
+    QDir().mkpath(outDir);
+
+    QString defaultFile = QString("%1/Factura_%2.agrfac").arg(outDir, inv.numeroFactura);
+    QString path = QFileDialog::getSaveFileName(this, "Guardar Proyecto de Factura", defaultFile, "Factura AGRELA (*.agrfac *.json)");
     if (!path.isEmpty()) {
         QFile file(path);
         if (file.open(QIODevice::WriteOnly)) {
@@ -800,7 +854,9 @@ void MainWindow::onSaveInvoiceJson() {
 }
 
 void MainWindow::onLoadInvoiceJson() {
-    QString path = QFileDialog::getOpenFileName(this, "Cargar Proyecto de Factura", "facturas", "Factura AGRELA (*.agrfac *.json)");
+    QString outDir = m_txtOutputDir ? m_txtOutputDir->text().trimmed() : "facturas";
+    if (outDir.isEmpty()) outDir = "facturas";
+    QString path = QFileDialog::getOpenFileName(this, "Cargar Proyecto de Factura", outDir, "Factura AGRELA (*.agrfac *.json)");
     if (!path.isEmpty()) {
         QFile file(path);
         if (file.open(QIODevice::ReadOnly)) {
