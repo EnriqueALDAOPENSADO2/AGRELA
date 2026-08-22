@@ -32,6 +32,8 @@ private slots:
     void onClientCompleterActivated(const QString& name);
 
     void onTarifaChanged(int index);
+    void onFormaPagoChanged(const QString& formaPago);
+    void onFechaEmisionChanged(const QDate& date);
 
     void onGenerateBothClicked();
     void onExportExcelOnly();
@@ -68,6 +70,7 @@ private:
     // Widgets de Factura
     QLineEdit* m_txtNumFactura = nullptr;
     QDateEdit* m_dateEdit = nullptr;
+    QDateEdit* m_dateVencimiento = nullptr;
     QComboBox* m_cmbFormaPago = nullptr;
     QComboBox* m_cmbTarifa = nullptr;
 

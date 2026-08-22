@@ -63,6 +63,10 @@ Invoice Invoice::fromJson(const QJsonObject& obj) {
     inv.numeroFactura = obj["numero_factura"].toString("1");
     inv.fecha = QDate::fromString(obj["fecha"].toString(), Qt::ISODate);
     if (!inv.fecha.isValid()) inv.fecha = QDate::currentDate();
+
+    inv.fechaVencimiento = QDate::fromString(obj["fecha_vencimiento"].toString(), Qt::ISODate);
+    if (!inv.fechaVencimiento.isValid()) inv.fechaVencimiento = inv.fecha;
+
     inv.formaPago = obj["forma_pago"].toString("TPV");
     inv.tarifa = obj["tarifa"].toString("PVP");
     inv.tipoIva = obj["tipo_iva"].toDouble(0.21);
@@ -87,6 +91,7 @@ QJsonObject Invoice::toJson() const {
     obj["cliente"] = cliente.toJson();
     obj["numero_factura"] = numeroFactura;
     obj["fecha"] = fecha.toString(Qt::ISODate);
+    obj["fecha_vencimiento"] = fechaVencimiento.toString(Qt::ISODate);
     obj["forma_pago"] = formaPago;
     obj["tarifa"] = tarifa;
     obj["tipo_iva"] = tipoIva;

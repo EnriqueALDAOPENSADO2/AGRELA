@@ -189,6 +189,11 @@ void MainWindow::setupClientAndInvoiceMeta() {
     m_dateEdit->setCalendarPopup(true);
     m_dateEdit->setDisplayFormat("dd/MM/yyyy");
 
+    m_dateVencimiento = new QDateEdit(QDate::currentDate(), this);
+    m_dateVencimiento->setCalendarPopup(true);
+    m_dateVencimiento->setDisplayFormat("dd/MM/yyyy");
+    m_dateVencimiento->setStyleSheet("background-color: #FEF3C7; color: #92400E; font-weight: bold; border: 1.5px solid #F59E0B; border-radius: 5px; padding: 4px 6px;");
+
     m_cmbFormaPago = new QComboBox(this);
     m_cmbFormaPago->addItems({"TPV", "Giro bancario 30 días", "Giro bancario 60 días", "Transferencia bancaria", "Efectivo", "Pagaré"});
 
@@ -210,20 +215,26 @@ void MainWindow::setupClientAndInvoiceMeta() {
     layout->addWidget(new QLabel("Provincia:", this), 2, 0);
     layout->addWidget(m_txtClientProvincia, 2, 1);
 
-    auto* invoiceMetaLayout = new QHBoxLayout();
-    invoiceMetaLayout->addWidget(new QLabel("Nº:", this));
-    invoiceMetaLayout->addWidget(m_txtNumFactura);
-    invoiceMetaLayout->addWidget(new QLabel("Fecha:", this));
-    invoiceMetaLayout->addWidget(m_dateEdit);
-    invoiceMetaLayout->addWidget(new QLabel("Pago:", this));
-    invoiceMetaLayout->addWidget(m_cmbFormaPago);
-    invoiceMetaLayout->addWidget(new QLabel("Tarifa:", this));
-    invoiceMetaLayout->addWidget(m_cmbTarifa);
+    auto* invoiceRow1 = new QHBoxLayout();
+    invoiceRow1->addWidget(new QLabel("Nº:", this));
+    invoiceRow1->addWidget(m_txtNumFactura);
+    invoiceRow1->addWidget(new QLabel("Tarifa:", this));
+    invoiceRow1->addWidget(m_cmbTarifa);
+    layout->addLayout(invoiceRow1, 2, 2, 1, 2);
 
-    layout->addLayout(invoiceMetaLayout, 2, 2, 1, 2);
+    auto* invoiceRow2 = new QHBoxLayout();
+    invoiceRow2->addWidget(new QLabel("Fecha Emisión:", this));
+    invoiceRow2->addWidget(m_dateEdit);
+    invoiceRow2->addWidget(new QLabel("Pago:", this));
+    invoiceRow2->addWidget(m_cmbFormaPago);
+    invoiceRow2->addWidget(new QLabel("Vencimiento:", this));
+    invoiceRow2->addWidget(m_dateVencimiento);
+    layout->addLayout(invoiceRow2, 3, 0, 1, 4);
 
     connect(btnBrowseClients, &QPushButton::clicked, this, &MainWindow::onBrowseClientsClicked);
     connect(m_cmbTarifa, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::onTarifaChanged);
+    connect(m_cmbFormaPago, QOverload<const QString&>::of(&QComboBox::currentTextChanged), this, &MainWindow::onFormaPagoChanged);
+    connect(m_dateEdit, &QDateEdit::dateChanged, this, &MainWindow::onFechaEmisionChanged);
 }
 
 void MainWindow::updateClientCompleter() {
@@ -473,6 +484,33 @@ void MainWindow::onTarifaChanged(int) {
     }
 }
 
+void MainWindow::onFormaPagoChanged(const QString& formaPago) {
+    if (!m_dateEdit || !m_dateVencimiento) return;
+    QDate fEmision = m_dateEdit->date();
+    QString fpLower = formaPago.toLower();
+
+    if (fpLower.contains("30")) {
+        m_dateVencimiento->setDate(fEmision.addDays(30));
+    } else if (fpLower.contains("60")) {
+        m_dateVencimiento->setDate(fEmision.addDays(60));
+    } else if (fpLower.contains("90")) {
+        m_dateVencimiento->setDate(fEmision.addDays(90));
+    } else if (fpLower.contains("transferencia")) {
+        m_dateVencimiento->setDate(fEmision.addDays(30));
+    } else if (fpLower.contains("pagar")) {
+        m_dateVencimiento->setDate(fEmision.addDays(60));
+    } else {
+        // TPV, Efectivo, Contado
+        m_dateVencimiento->setDate(fEmision);
+    }
+}
+
+void MainWindow::onFechaEmisionChanged(const QDate&) {
+    if (m_cmbFormaPago) {
+        onFormaPagoChanged(m_cmbFormaPago->currentText());
+    }
+}
+
 void MainWindow::onCatalogItemSelected(const CatalogItem& catItem) {
     QString currentTariff = m_cmbTarifa ? m_cmbTarifa->currentData().toString() : "PVP";
     InvoiceItem invItem = InvoiceItem::fromCatalogItem(catItem, currentTariff);
@@ -615,6 +653,7 @@ Invoice MainWindow::getInvoiceFromUi() const {
 
     inv.numeroFactura = m_txtNumFactura->text().trimmed();
     inv.fecha = m_dateEdit->date();
+    inv.fechaVencimiento = m_dateVencimiento ? m_dateVencimiento->date() : inv.fecha;
     inv.formaPago = m_cmbFormaPago->currentText();
     inv.tarifa = m_cmbTarifa ? m_cmbTarifa->currentData().toString() : "PVP";
     inv.tipoIva = m_spnTipoIva->value() / 100.0;
@@ -631,6 +670,9 @@ void MainWindow::loadInvoiceToUi(const Invoice& inv) {
 
     m_txtNumFactura->setText(inv.numeroFactura);
     m_dateEdit->setDate(inv.fecha);
+    if (m_dateVencimiento) {
+        m_dateVencimiento->setDate(inv.fechaVencimiento.isValid() ? inv.fechaVencimiento : inv.fecha);
+    }
     
     int idx = m_cmbFormaPago->findText(inv.formaPago);
     if (idx >= 0) m_cmbFormaPago->setCurrentIndex(idx);
@@ -648,7 +690,11 @@ void MainWindow::onNewInvoice() {
     Invoice fresh;
     fresh.numeroFactura = QString::number(QDateTime::currentDateTime().toSecsSinceEpoch() % 10000);
     fresh.fecha = QDate::currentDate();
+    fresh.fechaVencimiento = fresh.fecha;
     loadInvoiceToUi(fresh);
+    if (m_cmbFormaPago) {
+        onFormaPagoChanged(m_cmbFormaPago->currentText());
+    }
 }
 
 void MainWindow::onGenerateBothClicked() {

@@ -37,6 +37,7 @@ struct Invoice {
     // Datos Factura
     QString numeroFactura = "1";
     QDate fecha = QDate::currentDate();
+    QDate fechaVencimiento = QDate::currentDate();
     QString formaPago = "TPV";
     QString tarifa = "PVP"; // "PVP" o "T1"
 

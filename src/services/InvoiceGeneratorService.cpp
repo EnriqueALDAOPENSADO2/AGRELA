@@ -131,11 +131,13 @@ static std::string buildSheet1Xml(const Invoice& invoice) {
     oss << "<c r=\"E9\" t=\"inlineStr\"><is><t>CIF/NIF</t></is></c>";
     oss << "<c r=\"F9\" t=\"inlineStr\"><is><t>" << xmlEscape(invoice.cliente.cifNif) << "</t></is></c></row>\n";
 
-    // Row 11: Factura Nº, Fecha
+    // Row 11: Factura Nº, Fecha, Vencimiento
     oss << "<row r=\"11\"><c r=\"E11\" t=\"inlineStr\"><is><t>Factura</t></is></c>";
     oss << "<c r=\"F11\" t=\"inlineStr\"><is><t>Nº " << xmlEscape(invoice.numeroFactura) << "</t></is></c>";
     oss << "<c r=\"G11\" t=\"inlineStr\"><is><t>Fecha</t></is></c>";
-    oss << "<c r=\"H11\" t=\"inlineStr\"><is><t>" << xmlEscape(invoice.fecha.toString("dd/MM/yyyy")) << "</t></is></c></row>\n";
+    oss << "<c r=\"H11\" t=\"inlineStr\"><is><t>" << xmlEscape(invoice.fecha.toString("dd/MM/yyyy")) << "</t></is></c>";
+    oss << "<c r=\"I11\" t=\"inlineStr\"><is><t>Vencimiento</t></is></c>";
+    oss << "<c r=\"J11\" t=\"inlineStr\"><is><t>" << xmlEscape(invoice.fechaVencimiento.toString("dd/MM/yyyy")) << "</t></is></c></row>\n";
 
     // Row 12: Column headers
     oss << "<row r=\"12\"><c r=\"C12\" t=\"inlineStr\"><is><t>DESCRIPCION</t></is></c>";
@@ -310,8 +312,8 @@ bool InvoiceGeneratorService::generatePdf(const Invoice& invoice, const QString&
     painter.setPen(primaryColor);
     painter.drawText(QRect(480, y, 320, 36), Qt::AlignRight | Qt::AlignTop, "FACTURA");
 
-    // Caja de Metadatos (Nº Factura, Fecha, Forma de Pago)
-    QRect metaBox(480, y + 42, 320, 78);
+    // Caja de Metadatos (Nº Factura, Fecha, Vencimiento, Forma de Pago)
+    QRect metaBox(480, y + 42, 320, 100);
     painter.setBrush(bgLight);
     painter.setPen(borderColor);
     painter.drawRoundedRect(metaBox, 6, 6);
@@ -320,12 +322,14 @@ bool InvoiceGeneratorService::generatePdf(const Invoice& invoice, const QString&
     painter.setFont(makeFont(11, true));
     painter.drawText(metaBox.adjusted(12, 10, -12, 0), Qt::AlignLeft, "Número:");
     painter.drawText(metaBox.adjusted(12, 32, -12, 0), Qt::AlignLeft, "Fecha:");
-    painter.drawText(metaBox.adjusted(12, 54, -12, 0), Qt::AlignLeft, "Forma de Pago:");
+    painter.drawText(metaBox.adjusted(12, 54, -12, 0), Qt::AlignLeft, "Vencimiento:");
+    painter.drawText(metaBox.adjusted(12, 76, -12, 0), Qt::AlignLeft, "Forma de Pago:");
 
     painter.setFont(makeFont(11, false));
     painter.drawText(metaBox.adjusted(0, 10, -12, 0), Qt::AlignRight, QString("Nº %1").arg(invoice.numeroFactura));
     painter.drawText(metaBox.adjusted(0, 32, -12, 0), Qt::AlignRight, invoice.fecha.toString("dd/MM/yyyy"));
-    painter.drawText(metaBox.adjusted(0, 54, -12, 0), Qt::AlignRight, invoice.formaPago);
+    painter.drawText(metaBox.adjusted(0, 54, -12, 0), Qt::AlignRight, invoice.fechaVencimiento.toString("dd/MM/yyyy"));
+    painter.drawText(metaBox.adjusted(0, 76, -12, 0), Qt::AlignRight, invoice.formaPago);
 
     // Datos Emisor (debajo del logo)
     int ey = y + 88;
